@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Grid } from "@radix-ui/themes";
 import tempImg from "../assets/stats/tmp.png";
 import humidityImg from "../assets/stats/hum.png";
 import Sidebar from "./Sidebar";
@@ -49,7 +50,7 @@ export default function Detail() {
       } catch (err) {
         if (alive) setError(err.message || "Failed to fetch data");
       } finally {
-        if (alive) setLoading(false);
+        if (alive) setLoading(false); 
       }
     }
 
@@ -84,6 +85,7 @@ export default function Detail() {
       <Sidebar activeItem="Devices" />
 
       <main className="sw-main">
+        {/* Header */}
         <header className="sw-topbar">
           <TextField.Root
             size="3"
@@ -125,7 +127,8 @@ export default function Detail() {
 
         {!loading && !error && (
           <div className="sw-content-grid">
-            {/* <section className="sw-center-col">
+            {/* Left part */}
+            <section className="sw-center-col">
               <Card className="sw-main-card">
                 <Flex justify="between" align="center" className="sw-main-card-head">
                   <Flex align="center" gap="2">
@@ -168,12 +171,13 @@ export default function Detail() {
                       </Flex>
                       <Separator size="4" my="3" />
                       <Text weight="medium">{device.title}</Text>
-                    </Card>
+                    </Card> 
                   );
                 })}
               </div>
-            </section> */}
+            </section>
 
+            {/* Right part */}
             <section className="sw-right-col">
               <Card className="sw-side-stat sw-side-stat-temp">
                 <img src={tempImg} alt="Temperature" className="sw-side-stat-img sw-side-img-temp" />

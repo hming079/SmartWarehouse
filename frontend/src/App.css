@@ -114,7 +114,7 @@ body {
 .sw-content-grid {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: 1fr 220px;
+  grid-template-columns: 1fr minmax(420px, 540px);
   gap: 14px;
 }
 
@@ -209,9 +209,11 @@ body {
 }
 .sw-right-col {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr; /* 1 column => 3 cards stacked vertically */
   gap: 12px;
-  max-width: 480px;
+  /* width: 100%; */
+  
+  max-width: 220px; /* optional: control right panel width */
 }
 
 .sw-side-stat {
@@ -223,8 +225,8 @@ body {
   justify-content: center;
   gap: 8px;
   padding: 12px;
-  min-height: 200px;
-  width: 200px;
+  min-height: 100px;
+  width: 100%;
 }
 
 .sw-side-stat-img {
@@ -261,7 +263,8 @@ body {
   }
 
   .sw-right-col {
-    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    grid-template-columns: 1fr;
+    max-width: 220px;
   }
 }
 
@@ -285,6 +288,7 @@ body {
 
   .sw-right-col {
     grid-template-columns: 1fr;
+    max-width: 220px;
   }
 
   .sw-topbar {
