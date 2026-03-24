@@ -175,19 +175,18 @@ export default function Detail() {
             </section> */}
 
             <section className="sw-right-col">
-              <Card className="sw-side-stat">
+              <Card className="sw-side-stat sw-side-stat-temp">
+                <img src={tempImg} alt="Temperature" className="sw-side-stat-img sw-side-img-temp" />
                 <Text color="gray" align="center">Temperature</Text>
                 <Heading size="8">+ {temp} °C</Heading>
-                <img src={tempImg} alt="Temperature" className="sw-side-stat-img" />
               </Card>
 
-              <Card className="sw-side-stat">
+              <Card className="sw-side-stat sw-side-stat-humidity">
+                <img src={humidityImg} alt="Humidity" className="sw-side-stat-img sw-side-img-humidity" />
                 <Text color="gray" align="center">Humidity</Text>
                 <Heading size="8">{hum} %</Heading>
-                <img src={humidityImg} alt="Humidity" className="sw-side-stat-img" />
               </Card>
-
-              <Card className="sw-side-stat" color="#F7F1FF">
+              <Card className="sw-side-stat">
                 <Text color="gray" align="center">Active/All</Text>
                 <Heading size="8">
                   {activeCount}/{DEVICE_CARDS.length}
