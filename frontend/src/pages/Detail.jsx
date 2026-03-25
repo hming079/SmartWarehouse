@@ -60,8 +60,8 @@ export default function Detail() {
     };
   }, []);
 
-  const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30);
-  const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30);
+  const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
+  const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
   const ts = payload?.data?.temperature?.[0]?.ts || payload?.data?.humidity?.[0]?.ts;
 
   const gaugeDeg = useMemo(() => {
@@ -78,10 +78,10 @@ export default function Detail() {
     "deg 260deg, transparent 260deg 360deg)";
 
   return (
-    <Box className="min-h-screen grid grid-cols-1 md:grid-cols-[112px_1fr] bg-[#eff0f3]">
+    <Box className="min-h-screen grid grid-cols-1 md:grid-cols-[15rem_minmax(0,1fr)] bg-[#eff0f3]">
       <Sidebar activeItem="Devices" />
 
-      <main className="m-4 rounded-[18px] bg-[#f8f8fb] px-4 pt-4 pb-6">
+      <main className="min-w-0 m-4 rounded-[18px] bg-[#f8f8fb] px-4 pt-4 pb-6">
         <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <TextField.Root
             size="3"
@@ -167,7 +167,7 @@ export default function Detail() {
                   <Text color="gray">30 °C</Text>
                 </Flex>
               </Card>
-
+              {/* Other devices */}
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {DEVICE_CARDS.map((device) => {
                   const isOn = device.state === "on";
