@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Grid } from "@radix-ui/themes";
 import tempImg from "../assets/stats/tmp.png";
 import humidityImg from "../assets/stats/hum.png";
 import Sidebar from "./Sidebar";
@@ -17,8 +16,6 @@ import {
   Text,
   TextField
 } from "@radix-ui/themes";
-import "../App.css";
-
 
 const DEVICE_CARDS = [
   { key: "temperature", title: "Temperature", state: "on" },
@@ -50,7 +47,7 @@ export default function Detail() {
       } catch (err) {
         if (alive) setError(err.message || "Failed to fetch data");
       } finally {
-        if (alive) setLoading(false); 
+        if (alive) setLoading(false);
       }
     }
 
@@ -81,19 +78,18 @@ export default function Detail() {
     "deg 260deg, transparent 260deg 360deg)";
 
   return (
-    <Box className="sw-root">
+    <Box className="min-h-screen grid grid-cols-1 md:grid-cols-[112px_1fr] bg-[#eff0f3]">
       <Sidebar activeItem="Devices" />
 
-      <main className="sw-main">
-        {/* Header */}
-        <header className="sw-topbar">
+      <main className="m-4 rounded-[18px] bg-[#f8f8fb] px-4 pt-4 pb-6">
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <TextField.Root
             size="3"
-            className="sw-search"
+            className="w-full max-w-[560px]"
             placeholder="Search using keywords or name ..."
-            >
+          >
             <TextField.Slot>⌕</TextField.Slot>
-            </TextField.Root>
+          </TextField.Root>
 
           <Flex align="center" gap="3">
             <Avatar fallback="JW" radius="full" size="3" />
@@ -105,7 +101,7 @@ export default function Detail() {
           </Flex>
         </header>
 
-        <Tabs.Root defaultValue="overview" className="sw-tabs">
+        <Tabs.Root defaultValue="overview" className="mt-4">
           <Tabs.List>
             <Tabs.Trigger value="overview">Tổng quan</Tabs.Trigger>
             <Tabs.Trigger value="list">Danh sách</Tabs.Trigger>
@@ -114,25 +110,24 @@ export default function Detail() {
         </Tabs.Root>
 
         {loading && (
-          <Card className="sw-status-card">
+          <Card className="mt-4 bg-white">
             <Text>Loading telemetry...</Text>
           </Card>
         )}
 
         {error && (
-          <Card className="sw-status-card sw-error">
+          <Card className="mt-4 bg-white text-[#bb173d]">
             <Text>Error: {error}</Text>
           </Card>
         )}
 
         {!loading && !error && (
-          <div className="sw-content-grid">
-            {/* Left part */}
-            <section className="sw-center-col">
-              <Card className="sw-main-card">
-                <Flex justify="between" align="center" className="sw-main-card-head">
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_minmax(220px,220px)]">
+            <section className="grid gap-4">
+              <Card className="rounded-2xl bg-[#efeaf9]">
+                <Flex justify="between" align="center" className="mb-3">
                   <Flex align="center" gap="2">
-                    <div className="sw-chip-icon">✹</div>
+                    <div className="grid h-8 w-8 place-items-center rounded-full bg-[#ddd4ff]">✹</div>
                     <Heading size="4">Air Conditioner</Heading>
                   </Flex>
                   <Flex align="center" gap="2">
@@ -141,56 +136,75 @@ export default function Detail() {
                   </Flex>
                 </Flex>
 
-                <div className="sw-gauge-wrap">
-                  <button className="sw-round-btn" type="button">−</button>
+                <div className="mt-2 flex items-center justify-center gap-5">
+                  <button
+                    className="h-9 w-[42px] rounded-xl border-0 bg-[#e2d8ff] text-[26px] leading-none text-[#24117e]"
+                    type="button"
+                  >
+                    −
+                  </button>
 
-                  <div className="sw-gauge-outer" style={{ background: gaugeBg }}>
-                    <div className="sw-gauge-inner">
+                  <div
+                    className="relative grid h-[250px] w-[250px] place-items-center rounded-full [filter:drop-shadow(0_8px_18px_rgba(28,20,85,0.15))]"
+                    style={{ background: gaugeBg }}
+                  >
+                    <div className="grid h-48 w-48 place-items-center rounded-full bg-[#f7f7fb] text-center">
                       <Text size="2" color="gray">Goal</Text>
                       <Heading size="8">{temp} °C</Heading>
                     </div>
                   </div>
 
-                  <button className="sw-round-btn" type="button">+</button>
+                  <button
+                    className="h-9 w-[42px] rounded-xl border-0 bg-[#e2d8ff] text-[26px] leading-none text-[#24117e]"
+                    type="button"
+                  >
+                    +
+                  </button>
                 </div>
 
-                <Flex justify="between" className="sw-min-max">
+                <Flex justify="between" className="mx-6 mt-3">
                   <Text color="gray">10 °C</Text>
                   <Text color="gray">30 °C</Text>
                 </Flex>
               </Card>
 
-              <div className="sw-device-grid">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {DEVICE_CARDS.map((device) => {
                   const isOn = device.state === "on";
                   return (
-                    <Card key={device.key} className={"sw-device-card" + (isOn ? " on" : "")}>
+                    <Card
+                      key={device.key}
+                      className={
+                        "rounded-2xl " +
+                        (isOn ? "bg-[#15078d] text-white" : "bg-[#e8ddfb] text-[#1b1a29]")
+                      }
+                    >
                       <Flex justify="between" align="center">
-                        <Text className="sw-device-state">{device.state}</Text>
+                        <Text className="text-4xl font-bold lowercase leading-none">{device.state}</Text>
                         <Switch defaultChecked={isOn} />
                       </Flex>
                       <Separator size="4" my="3" />
                       <Text weight="medium">{device.title}</Text>
-                    </Card> 
+                    </Card>
                   );
                 })}
               </div>
             </section>
 
-            {/* Right part */}
-            <section className="sw-right-col">
-              <Card className="sw-side-stat sw-side-stat-temp">
-                <img src={tempImg} alt="Temperature" className="sw-side-stat-img sw-side-img-temp" />
+            <section className="grid max-w-[220px] grid-cols-1 gap-3">
+              <Card className="flex min-h-[100px] w-full flex-col items-center justify-center gap-2 rounded-[14px] bg-[#ffd8a8] p-3">
+                <img src={tempImg} alt="Temperature" className="h-11 w-11 object-contain" />
                 <Text color="gray" align="center">Temperature</Text>
                 <Heading size="8">+ {temp} °C</Heading>
               </Card>
 
-              <Card className="sw-side-stat sw-side-stat-humidity">
-                <img src={humidityImg} alt="Humidity" className="sw-side-stat-img sw-side-img-humidity" />
+              <Card className="flex min-h-[100px] w-full flex-col items-center justify-center gap-2 rounded-[14px] bg-[#74b7e4] p-3">
+                <img src={humidityImg} alt="Humidity" className="h-11 w-11 object-contain" />
                 <Text color="gray" align="center">Humidity</Text>
                 <Heading size="8">{hum} %</Heading>
               </Card>
-              <Card className="sw-side-stat">
+
+              <Card className="flex min-h-[100px] w-full flex-col items-center justify-center gap-2 rounded-[14px] bg-[#f0ecf8] p-3">
                 <Text color="gray" align="center">Active/All</Text>
                 <Heading size="8">
                   {activeCount}/{DEVICE_CARDS.length}
