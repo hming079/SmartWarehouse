@@ -1,7 +1,3 @@
-import Detail from "./pages/Detail";
-
-function App() {
-return <Detail />;
-}
+import App from "./App.jsx";
 
 export default App;
