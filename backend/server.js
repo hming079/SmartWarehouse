@@ -1,17 +1,27 @@
-require("dotenv").config();
+const path = require("path");
+const dotenv = require("dotenv");
+
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 const express = require("express");
 const axios = require("axios");
 const cors = require("cors");
+const routeV1 = require("./src/routes");
+const corsConfig = require("./src/config/cors");
+const notFound = require("./src/middleware/notFound");
+const errorHandler = require("./src/middleware/errorHandler");
 
 const app = express();
 app.use(express.json());
-app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-}));
-const PORT = Number(process.env.PORT) || 5000;
-const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(/\/+$/, "");
+app.use(
+  cors(corsConfig),
+);
+const PORT = Number(process.env.PORT) || 5001;
+const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(
+  /\/+$/,
+  "",
+);
 const TB_USERNAME = process.env.TB_USERNAME;
 const TB_PASSWORD = process.env.TB_PASSWORD;
 
@@ -25,12 +35,12 @@ function validateEnv() {
 
 function getAuthHeaders() {
   return {
-    "X-Authorization": `Bearer ${token}`
+    "X-Authorization": `Bearer ${token}`,
   };
 }
 
 async function login() {
-  if (process.env.TB_TOKEN){
+  if (process.env.TB_TOKEN) {
     token = process.env.TB_TOKEN;
     console.log("Using token from .env");
     return;
@@ -40,7 +50,7 @@ async function login() {
 
   const res = await axios.post(`${BASE_URL}/api/auth/login`, {
     username: TB_USERNAME,
-    password: TB_PASSWORD
+    password: TB_PASSWORD,
   });
 
   if (!res.data || !res.data.token) {
@@ -66,8 +76,8 @@ async function requestWithAutoRelogin(requestFn) {
 async function getDeviceId() {
   const res = await requestWithAutoRelogin(() =>
     axios.get(`${BASE_URL}/api/tenant/devices?pageSize=10&page=0`, {
-      headers: getAuthHeaders()
-    })
+      headers: getAuthHeaders(),
+    }),
   );
 
   const devices = res?.data?.data || [];
@@ -84,8 +94,8 @@ async function getTelemetry(deviceId) {
 
   const res = await requestWithAutoRelogin(() =>
     axios.get(url, {
-      headers: getAuthHeaders()
-    })
+      headers: getAuthHeaders(),
+    }),
   );
 
   return res.data;
@@ -103,16 +113,21 @@ app.get("/data", async (req, res) => {
     res.json({
       ok: true,
       deviceId,
-      data
+      data,
     });
   } catch (err) {
     const status = err?.response?.status || 500;
-    const message = err?.response?.data?.message || err.message || "Internal Server Error";
+    const message =
+      err?.response?.data?.message || err.message || "Internal Server Error";
 
     console.error("GET /data failed:", message);
     res.status(status).json({ ok: false, error: message });
   }
 });
+
+app.use("/api", routeV1);
+app.use(notFound);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
