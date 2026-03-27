@@ -120,7 +120,6 @@ CREATE TABLE dbo.Sensors (
   room_id INT NULL,
   name NVARCHAR(255),
   type NVARCHAR(20) CHECK (type IN ('TEMPERATURE', 'HUMIDITY', 'CO2', 'SMOKE')),
-  mac_address NVARCHAR(255) UNIQUE,
   status NVARCHAR(20) CHECK (status IN ('ACTIVE', 'INACTIVE', 'MAINTENANCE')),
   last_connection DATETIME2 NULL
 );
@@ -212,8 +211,8 @@ GO
 
 EXEC sp_addextendedproperty
   @name = N'Column_Description',
-  @value = N'Dia chi phan cung cua thiet bi',
+  @value = N'Trang thai hoat dong cua thiet bi',
   @level0type = N'Schema', @level0name = N'dbo',
   @level1type = N'Table',  @level1name = N'Sensors',
-  @level2type = N'Column', @level2name = N'mac_address';
+  @level2type = N'Column', @level2name = N'status';
 GO
