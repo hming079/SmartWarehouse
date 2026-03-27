@@ -62,7 +62,7 @@ docker exec smartwarehouse-mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U s
 
 Ky vong: `table_count` > 0 (hien tai la 16).
 
-## 3) Chay DB local (khong dung Docker)
+## 3) Chay DB local (khong dung Docker) 
 
 ### Buoc 1: Dam bao SQL Server local dang chay
 
@@ -85,7 +85,7 @@ DB_NAME=SmartWarehouse
 Neu may co `sqlcmd` local:
 
 ```bash
-sqlcmd -S 127.0.0.1,1433 -U sa -P '<mat_khau_sql_local>' -C -b -i /Users/hoangg/Slide/DADN/SmartWarehouse/backend/src/scripts/Schema.mssql.sql
+sqlcmd -S 127.0.0.1,1433 -U sa -P 'myuser1234' -C -b -i /Users/hohai/Desktop/DADN/SmartWarehouse/backend/src/scripts/Schema.mssql.sql
 ```
 
 ## 4) Kiem tra ket noi pool da hoat dong chua
@@ -141,3 +141,9 @@ docker compose up -d --build
 3. `Cannot find module .../server.js`
 
 Ban dang chay `node server.js` o root project. Hay chay trong folder `backend` hoac dung duong dan day du.
+
+## 7) Chen du lieu mau
+```bash
+docker cp Data_User_Room.sql smartwarehouse-mssql:/tmp/Data_User_Room.sql
+docker exec smartwarehouse-mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStrong!Passw0rd" -C -b -i /tmp/Data_User_Room.sql
+```

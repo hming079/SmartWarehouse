@@ -13,6 +13,15 @@ const notFound = require("./src/middleware/notFound");
 const errorHandler = require("./src/middleware/errorHandler");
 
 const app = express();
+app.use((req, res, next) => {
+  console.log("---- REQUEST ----");
+  console.log("Method:", req.method);
+  console.log("URL:", req.url);
+  console.log("Headers:", req.headers);
+  console.log("Body:", req.body);
+  console.log("-----------------");
+  next();
+});
 app.use(express.json());
 app.use(
   cors(corsConfig),

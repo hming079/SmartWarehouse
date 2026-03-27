@@ -18,10 +18,10 @@ import {
 } from "@radix-ui/themes";
 
 const DEVICE_CARDS = [
-  { key: "temperature", title: "Temperature", state: "on" },
-  { key: "lights", title: "Lights", state: "off" },
-  { key: "air", title: "Air Conditioner", state: "off" },
-  { key: "fridge", title: "Refrigerator", state: "off" }
+  { key: "fan", title: "Fan", state: "on" },
+  { key: "dryer", title: "Dryer", state: "off" },
+  // { key: "cooler", title: "Air Conditioner", state: "off" },
+  // { key: "fridge", title: "Refrigerator", state: "off" }
 ];
 
 export default function Detail() {
