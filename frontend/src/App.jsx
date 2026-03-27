@@ -3,13 +3,15 @@ import MainLayout from "./components/layout/MainLayout";
 import Devices from "./pages/Devices";
 import Automation from "./pages/Automation";
 import Placeholder from "./pages/Placeholder";
+import AreaManagement from "./pages/AreaManagement";
 
 const App = () => {
   return (
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/devices" replace />} />
+          <Route path="/" element={<Navigate to="/area" replace />} />
+          <Route path="/area" element={<AreaManagement />} />
           <Route path="/devices" element={<Devices />} />
           <Route path="/automation" element={<Automation />} />
           <Route path="*" element={<Placeholder />} />

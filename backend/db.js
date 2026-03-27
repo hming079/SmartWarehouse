@@ -22,7 +22,7 @@ const dbConfig = {
   port: Number(process.env.DB_PORT || 1433),
   database: process.env.DB_NAME || "SmartWarehouse",
   options: {
-    encrypt: false,
+    encrypt: true,
     trustServerCertificate: true,
   },
   pool: {

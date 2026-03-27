@@ -11,7 +11,7 @@ services:
       MSSQL_PID: "Developer"
       SA_PASSWORD: "YourStrong!Passw0rd"
     ports:
-      - "1433:1433"
+      - "11433:1433"
     volumes:
       - mssql_data:/var/opt/mssql
     restart: unless-stopped
