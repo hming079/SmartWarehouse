@@ -1,6 +1,6 @@
 import RuleRow from "./RuleRow";
 
-const RuleTable = ({ rules }) => {
+const RuleTable = ({ rules, onDelete, onToggle }) => {
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-lg">
       <table className="min-w-full text-left text-sm">
@@ -23,7 +23,7 @@ const RuleTable = ({ rules }) => {
         </thead>
         <tbody>
           {rules.map((rule) => (
-            <RuleRow key={rule.id} rule={rule} />
+            <RuleRow key={rule.id} rule={rule} onDelete={onDelete} onToggle={onToggle} />
           ))}
         </tbody>
       </table>

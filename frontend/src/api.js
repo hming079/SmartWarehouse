@@ -27,5 +27,10 @@ export const api = {
   getRooms: (floorId) => request(`/rooms?floorId=${floorId}`),
   createRoom: (payload) => request("/rooms", { method: "POST", body: JSON.stringify(payload) }),
   deleteRoom: (id) => request(`/rooms/${id}`, { method: "DELETE" }),
+
+  getAutomationRules: () => request("/automation"),
+  createAutomationRule: (payload) => request("/automation", { method: "POST", body: JSON.stringify(payload) }),
+  toggleAutomationRule: (id) => request(`/automation/${id}/toggle`, { method: "PATCH" }),
+  deleteAutomationRule: (id) => request(`/automation/${id}`, { method: "DELETE" }),
 };
 

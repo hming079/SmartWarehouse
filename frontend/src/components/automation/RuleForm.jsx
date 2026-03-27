@@ -1,7 +1,7 @@
 const inputClass =
   "mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400";
 
-const RuleForm = ({ form, setForm, onCancel, onSave }) => {
+const RuleForm = ({ form, setForm, onCancel, onSave, zoneOptions = [] }) => {
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -32,8 +32,15 @@ const RuleForm = ({ form, setForm, onCancel, onSave }) => {
             value={form.applyTo}
             onChange={(e) => handleChange("applyTo", e.target.value)}
           >
-            <option>Khu vực 1</option>
-            <option>Khu vực 2</option>
+            {zoneOptions.length === 0 ? (
+              <option value="">Chưa có khu vực</option>
+            ) : (
+              zoneOptions.map((zone) => (
+                <option key={zone.zone_id} value={zone.name}>
+                  {zone.name}
+                </option>
+              ))
+            )}
           </select>
         </label>
 
