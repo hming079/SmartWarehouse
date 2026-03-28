@@ -3,7 +3,10 @@ import Toggle from "../ui/Toggle";
 
 const iconMap = {
   temperature: "🌡",
+  humidity: "💧",
   lights: "💡",
+  fan: "🌀",
+  dryer: "🌬",
   ac: "❄",
   fridge: "🧊",
 };

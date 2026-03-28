@@ -32,5 +32,10 @@ export const api = {
   createAutomationRule: (payload) => request("/automation", { method: "POST", body: JSON.stringify(payload) }),
   toggleAutomationRule: (id) => request(`/automation/${id}/toggle`, { method: "PATCH" }),
   deleteAutomationRule: (id) => request(`/automation/${id}`, { method: "DELETE" }),
+  getDevices: (roomId) => request(`/devices?roomId=${roomId}`),
+  createDevice: (payload) => request("/devices", { method: "POST", body: JSON.stringify(payload) }),
+  updateDevice: (id, payload) => request(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  deleteDevice: (id) => request(`/devices/${id}`, { method: "DELETE" }),
+  toggleDevice: (id) => request(`/devices/${id}/toggle`, { method: "PATCH" }),
 };
 
