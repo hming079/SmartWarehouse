@@ -113,6 +113,9 @@ CREATE TABLE dbo.Threshold (
 );
 GO
 
+
+
+
 CREATE TABLE dbo.Sensors (
   sensor_id INT NOT NULL PRIMARY KEY,
   threshold_id INT NULL,
