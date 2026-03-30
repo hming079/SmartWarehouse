@@ -57,6 +57,10 @@ const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
   ];
 };
 
+const API_PORT = process.env.REACT_APP_API_PORT || "5001";
+const API_BASE_URL =
+  process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
+
 const Devices = () => {
   const [activeTab, setActiveTab] = useState(tabs[0]);
   const [deviceList, setDeviceList] = useState([]);
@@ -78,7 +82,7 @@ const Devices = () => {
 
       setDevicesError("");
       
-      const response = await fetch("http://localhost:5000/control", {
+      const response = await fetch(`${API_BASE_URL}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key, value: newValue }),
@@ -114,7 +118,7 @@ const Devices = () => {
         setLoading(true);
         setError("");
 
-        const res = await fetch("http://localhost:5000/data");
+        const res = await fetch(`${API_BASE_URL}/data`);
         if (!res.ok) {
           throw new Error("Request failed with status " + res.status);
         }
