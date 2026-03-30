@@ -292,16 +292,15 @@ app.post("/control", async (req, res) => {
     if (!token) {
       await login();
     }
-
     const { key, value } = req.body;
     if (!key || value === undefined) {
       return res.status(400).json({ ok: false, error: "Missing key or value" });
     }
 
     const deviceId = await getDeviceId();
-    
+    const device_token = process.env.TB_DEVICE_TOKEN; 
     // Try Device Telemetry API with attributes update
-    const url = `${BASE_URL}/api/v1/${token}/telemetry`;
+    const url = `${BASE_URL}/api/v1/${device_token}/telemetry`;
     
     const payload = { [key]: value };
 
