@@ -286,6 +286,7 @@ app.get("/data", async (req, res) => {
   }
 });
 
+// Control telemetry of server
 app.post("/control", async (req, res) => {
   try {
     if (!token) {
@@ -300,7 +301,7 @@ app.post("/control", async (req, res) => {
     const deviceId = await getDeviceId();
     
     // Try Device Telemetry API with attributes update
-    const url = `${BASE_URL}/api/plugins/telemetry/DEVICE/${deviceId}/attributes/SERVER_SCOPE`;
+    const url = `${BASE_URL}/api/v1/${token}/telemetry`;
     
     const payload = { [key]: value };
 
