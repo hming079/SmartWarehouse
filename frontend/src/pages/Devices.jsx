@@ -82,7 +82,7 @@ const Devices = () => {
 
       setDevicesError("");
       
-      const response = await fetch(`${API_BASE_URL}/control`, {
+      const response = await fetch(`${API_BASE_URL}/api/iot/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key, value: newValue }),
@@ -118,7 +118,7 @@ const Devices = () => {
         setLoading(true);
         setError("");
 
-        const res = await fetch(`${API_BASE_URL}/data`);
+        const res = await fetch(`${API_BASE_URL}/api/iot/data`);
         if (!res.ok) {
           throw new Error("Request failed with status " + res.status);
         }

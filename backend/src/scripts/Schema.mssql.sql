@@ -175,7 +175,16 @@ CREATE TABLE dbo.UserPermissionAssignment (
   PRIMARY KEY (user_id, room_id)
 );
 GO
-
+CREATE TABLE dbo.Devices (
+  device_id INT IDENTITY,
+  room_id INT NOT NULL,
+  device_status NVARCHAR(5) CHECK (device_status IN ('ON', 'OFF')),
+  last_update_time DATETIME2 NULL
+)
+ALTER TABLE dbo.Devices
+  ADD CONSTRAINT FK_Devices_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
+GO
+-- Add on delete cascade...
 ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Role FOREIGN KEY (role_id) REFERENCES dbo.Role(role_id);
 ALTER TABLE dbo.RolePermissions ADD CONSTRAINT FK_RolePermissions_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id);
 ALTER TABLE dbo.RolePermissions ADD CONSTRAINT FK_RolePermissions_Role FOREIGN KEY (role_id) REFERENCES dbo.Role(role_id);
