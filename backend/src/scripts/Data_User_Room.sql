@@ -88,4 +88,3 @@ INSERT INTO dbo.UserPermissionAssignment (user_id, room_id, can_edit_config, can
 
 PRINT N'Successful!';
 GO
-

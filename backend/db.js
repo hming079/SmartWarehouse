@@ -32,6 +32,8 @@ const dbConfig = {
     min: 0,
     idleTimeoutMillis: 30000,
   },
+  connectionTimeout: Number(process.env.DB_CONNECTION_TIMEOUT || 15000),
+  requestTimeout: Number(process.env.DB_REQUEST_TIMEOUT || 15000),
 };
 
 let poolPromise;
@@ -140,13 +142,54 @@ async function runAutoInitIfEnabled(pool) {
   await autoInitPromise;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function connectWithRetry() {
+  const retries = Number(process.env.DB_CONNECT_RETRIES || 10);
+  const delayMs = Number(process.env.DB_CONNECT_RETRY_DELAY_MS || 2000);
+  let lastError;
+
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      if (attempt > 1) {
+        console.log(
+          `[db] Retry connect attempt ${attempt}/${retries} in ${delayMs}ms...`,
+        );
+      }
+
+      return await sql.connect(dbConfig);
+    } catch (err) {
+      lastError = err;
+      if (attempt < retries) {
+        await sleep(delayMs);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 function getPool() {
   if (!poolPromise) {
     validateDbConfig();
     poolPromise = (async () => {
-      const pool = await sql.connect(dbConfig);
-      await runAutoInitIfEnabled(pool);
-      return pool;
+      try {
+        const pool = await connectWithRetry();
+        await runAutoInitIfEnabled(pool);
+        return pool;
+      } catch (err) {
+        poolPromise = undefined;
+        autoInitPromise = undefined;
+        try {
+          await sql.close();
+        } catch (_) {
+          // Ignore close errors while surfacing the original connect error.
+        }
+
+        throw err;
+      }
     })();
   }
   return poolPromise;
