@@ -1,4 +1,5 @@
 const iotService = require("./iot.service");
+const { sql, getPool } = require("../../../db");
 
 function resolveError(err) {
   return {
@@ -14,6 +15,10 @@ async function getData(req, res) {
   try {
     const result = await iotService.getData();
     res.json(result);
+    
+    // Insert into dbs
+    
+
   } catch (err) {
     const { status, message } = resolveError(err);
     console.error("GET /api/iot/data failed:", message);

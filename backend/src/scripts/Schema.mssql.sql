@@ -176,13 +176,31 @@ CREATE TABLE dbo.UserPermissionAssignment (
 );
 GO
 CREATE TABLE dbo.Devices (
-  device_id INT IDENTITY,
+  device_id INT IDENTITY(1,1) NOT NULL,
   room_id INT NOT NULL,
-  device_status NVARCHAR(5) CHECK (device_status IN ('ON', 'OFF')),
-  last_update_time DATETIME2 NULL
-)
+  device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
+  last_update_time DATETIME2 NULL,
+  PRIMARY KEY (device_id)
+);
+GO
+
 ALTER TABLE dbo.Devices
-  ADD CONSTRAINT FK_Devices_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
+  ADD CONSTRAINT FK_Devices_Room
+  FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
+GO
+
+CREATE TABLE dbo.DevicesLog (
+  device_log_id INT IDENTITY(1,1) NOT NULL,
+  device_id INT NOT NULL,
+  device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
+  [timestamp] DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
+  PRIMARY KEY (device_log_id)
+);
+GO
+
+ALTER TABLE dbo.DevicesLog
+  ADD CONSTRAINT FK_Devices_Log
+  FOREIGN KEY (device_id) REFERENCES dbo.Devices(device_id);
 GO
 -- Add on delete cascade...
 ALTER TABLE dbo.Users ADD CONSTRAINT FK_Users_Role FOREIGN KEY (role_id) REFERENCES dbo.Role(role_id);

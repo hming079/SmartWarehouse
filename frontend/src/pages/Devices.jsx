@@ -1,158 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
-import Toggle from "../components/ui/Toggle";
-import Gauge from "../components/ui/Gauge";
 import DeviceGrid from "../components/device/DeviceGrid";
 import TemperatureWidget from "../components/device/TemperatureWidget";
 import HumidityWidget from "../components/device/HumidityWidget";
 import { tabs } from "../constants/mockData";
-
-const toUiStatus = (status) =>
-  String(status || "").toUpperCase() === "ON" ? "on" : "off";
-
-const toUiType = (type, name) => {
-  const normalized = `${type || ""} ${name || ""}`.toLowerCase();
-  if (normalized.includes("temp")) return "temperature";
-  if (normalized.includes("humid")) return "humidity";
-  if (normalized.includes("fan") || normalized.includes("vent")) return "fan";
-  if (normalized.includes("dryer") || normalized.includes("dry")) return "dryer";
-  if (normalized.includes("light")) return "lights";
-  if (normalized.includes("ac") || normalized.includes("air") || normalized.includes("cool")) return "ac";
-  if (normalized.includes("fridge") || normalized.includes("cold")) return "fridge";
-  return "lights";
-};
-
-const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
-  const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
-  const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
-  const status = toUiStatus(deviceStatus);
-
-  const switchDevices = Array.isArray(switches)
-    ? switches.map((item) => ({
-        id: `switch-${item.key}`,
-        name: item.name || item.key || "Switch",
-        status: toUiStatus(item.status),
-        type: toUiType(item.type, item.name || item.key),
-      }))
-    : [];
-
-  if (switchDevices.length > 0) {
-    return switchDevices;
-  }
-
-  return [
-    {
-      id: "telemetry-temperature",
-      name: Number.isNaN(tempValue) ? "Temperature" : `Temperature (${tempValue.toFixed(1)} C)`,
-      status,
-      type: "temperature",
-    },
-    {
-      id: "telemetry-humidity",
-      name: Number.isNaN(humValue) ? "Humidity" : `Humidity (${humValue.toFixed(1)}%)`,
-      status,
-      type: "humidity",
-    },
-  ];
-};
-
-const API_PORT = process.env.REACT_APP_API_PORT || "5001";
-const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
+import { useDeviceData } from "../hooks/deviceHook";
 
 const Devices = () => {
   const [activeTab, setActiveTab] = useState(tabs[0]);
-  const [deviceList, setDeviceList] = useState([]);
-  const [acOn, setAcOn] = useState(true);
-  const [devicesLoading, setDevicesLoading] = useState(true);
-  const [devicesError, setDevicesError] = useState("");
-
-  const handleToggleDevice = async (id) => {
-    try {
-      const device = deviceList.find((d) => d.id === id);
-      if (!device) return;
-
-      // Determine new state
-      const newStatus = device.status === "on" ? "off" : "on";
-      const newValue = newStatus === "on" ? "1" : "0";
-
-      // Extract the key from device id (e.g., "switch-fan_on" -> "fan_on")
-      const key = id.startsWith("switch-") ? id.replace("switch-", "") : id;
-
-      setDevicesError("");
-      
-      const response = await fetch(`${API_BASE_URL}/api/iot/control`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, value: newValue }),
-      });
-
-      const result = await response.json();
-      console.log('Toggle response:', result);
-      if (!response.ok) {
-        setDevicesError(`Lỗi: ${result.error || "Không thể điều khiển thiết bị"}`);
-        return;
-      }
-
-      // Update local state optimistically
-      setDeviceList((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d))
-      );
-      
-      setDevicesError("");
-    } catch (err) {
-      setDevicesError(`Lỗi kết nối: ${err.message}`);
-    }
-  };
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [payload, setPayload] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadData() {
-      try {
-        setLoading(true);
-        setError("");
-
-        const res = await fetch(`${API_BASE_URL}/api/iot/data`);
-        if (!res.ok) {
-          throw new Error("Request failed with status " + res.status);
-        }
-
-        const json = await res.json();
-        if (alive) {
-          setPayload(json);
-          setDeviceList(
-            buildTelemetryDevices(json?.data, json?.deviceStatus, json?.switches)
-          );
-          setAcOn(toUiStatus(json?.deviceStatus) === "on");
-          setDevicesError("");
-        }
-      } catch (err) {
-        if (alive) {
-          setError(err.message || "Failed to fetch data");
-          setDevicesError("Khong the lay danh sach device tu App Core IoT");
-        }
-      } finally {
-        if (alive) {
-          setLoading(false);
-          setDevicesLoading(false);
-        }
-      }
-    }
-
-    loadData();
-    const timer = setInterval(loadData, 5000);
-
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
+  const {
+    deviceList,
+    devicesLoading,
+    devicesError,
+    loading,
+    error,
+    payload,
+    handleToggleDevice,
+  } = useDeviceData();
 
   const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
   const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
