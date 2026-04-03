@@ -180,6 +180,7 @@ CREATE TABLE dbo.Devices (
   room_id INT NOT NULL,
   device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
   last_update_time DATETIME2 NULL,
+  device_type NVARCHAR(50) NULL,
   PRIMARY KEY (device_id)
 );
 GO
