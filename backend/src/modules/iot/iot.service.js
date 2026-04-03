@@ -1,4 +1,5 @@
 const axios = require("axios");
+const { sql, getPool } = require("../../../db");
 
 const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(/\/+$/, "");
 const TB_USERNAME = process.env.TB_USERNAME;
@@ -107,6 +108,250 @@ function getLatestTelemetryValue(data, key) {
     return null;
   }
   return String(value).trim().toLowerCase();
+}
+
+function getLatestTelemetryEntry(data, key) {
+  const rawEntry = data?.[key]?.[0];
+  if (!rawEntry || rawEntry.value === undefined || rawEntry.value === null) {
+    return null;
+  }
+
+  const ts = Number(rawEntry.ts);
+  return {
+    value: rawEntry.value,
+    ts: Number.isFinite(ts) ? ts : Date.now(),
+  };
+}
+
+function normalizeRoomId(rawRoomId) {
+  const roomId = Number(rawRoomId ?? process.env.IOT_DEFAULT_ROOM_ID);
+  if (!Number.isInteger(roomId) || roomId <= 0) {
+    throw createHttpError(
+      "Missing or invalid roomId. Provide roomId in request or IOT_DEFAULT_ROOM_ID in environment.",
+      400,
+    );
+  }
+
+  return roomId;
+}
+
+async function resolveSyncRoomId(rawRoomId, pool) {
+  if (rawRoomId !== undefined && rawRoomId !== null && rawRoomId !== "") {
+    return normalizeRoomId(rawRoomId);
+  }
+
+  if (process.env.IOT_DEFAULT_ROOM_ID) {
+    return normalizeRoomId(process.env.IOT_DEFAULT_ROOM_ID);
+  }
+
+  const result = await new sql.Request(pool).query(
+    "SELECT TOP 1 room_id FROM dbo.Rooms ORDER BY room_id ASC",
+  );
+
+  const roomId = result?.recordset?.[0]?.room_id;
+  if (!Number.isInteger(Number(roomId)) || Number(roomId) <= 0) {
+    throw createHttpError(
+      "No room available for IoT sync. Set IOT_DEFAULT_ROOM_ID or add a room in the database.",
+      400,
+    );
+  }
+
+  return Number(roomId);
+}
+
+function toUtcDate(ts) {
+  const numericTs = Number(ts);
+  if (!Number.isFinite(numericTs) || numericTs <= 0) {
+    return new Date();
+  }
+  return new Date(numericTs);
+}
+
+function toFloatOrNull(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+async function ensureDeviceTypeColumn(transaction) {
+  await new sql.Request(transaction).batch(`
+    IF COL_LENGTH('dbo.Devices', 'device_type') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Devices ADD device_type NVARCHAR(50) NULL;
+    END;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM sys.indexes
+      WHERE name = 'UX_Devices_Room_DeviceType'
+        AND object_id = OBJECT_ID('dbo.Devices')
+    )
+    BEGIN
+      CREATE UNIQUE NONCLUSTERED INDEX UX_Devices_Room_DeviceType
+      ON dbo.Devices (room_id, device_type)
+      WHERE device_type IS NOT NULL;
+    END;
+  `);
+}
+
+async function ensureRoomExists(transaction, roomId) {
+  const roomResult = await new sql.Request(transaction)
+    .input("roomId", sql.Int, roomId)
+    .query("SELECT TOP 1 room_id FROM dbo.Rooms WHERE room_id = @roomId");
+
+  if (roomResult.recordset.length === 0) {
+    throw createHttpError(`Room ${roomId} does not exist in database`, 404);
+  }
+}
+
+async function upsertSensorAndInsertData({
+  transaction,
+  roomId,
+  sensorType,
+  sensorName,
+  sensorValue,
+  sensorUnit,
+  sensorTimestamp,
+}) {
+  const sensorResult = await new sql.Request(transaction)
+    .input("roomId", sql.Int, roomId)
+    .input("sensorType", sql.NVarChar(20), sensorType)
+    .input("sensorName", sql.NVarChar(255), sensorName).query(`
+      DECLARE @sensorId INT;
+
+      SELECT TOP 1 @sensorId = sensor_id
+      FROM dbo.Sensors
+      WHERE room_id = @roomId AND type = @sensorType
+      ORDER BY sensor_id;
+
+      IF @sensorId IS NULL
+      BEGIN
+        SELECT @sensorId = ISNULL(MAX(sensor_id), 0) + 1
+        FROM dbo.Sensors WITH (UPDLOCK, HOLDLOCK);
+
+        INSERT INTO dbo.Sensors (
+          sensor_id,
+          threshold_id,
+          shedule_id,
+          room_id,
+          name,
+          type,
+          status,
+          last_connection
+        )
+        VALUES (
+          @sensorId,
+          NULL,
+          NULL,
+          @roomId,
+          @sensorName,
+          @sensorType,
+          'ACTIVE',
+          SYSUTCDATETIME()
+        );
+      END
+      ELSE
+      BEGIN
+        UPDATE dbo.Sensors
+        SET name = @sensorName,
+            status = 'ACTIVE',
+            last_connection = SYSUTCDATETIME()
+        WHERE sensor_id = @sensorId;
+      END;
+
+      SELECT @sensorId AS sensor_id;
+    `);
+
+  const sensorId = sensorResult.recordset[0].sensor_id;
+
+  await new sql.Request(transaction)
+    .input("sensorId", sql.Int, sensorId)
+    .input("sensorValue", sql.Float, sensorValue)
+    .input("sensorUnit", sql.NVarChar(20), sensorUnit)
+    .input("sensorTimestamp", sql.DateTime2, sensorTimestamp).query(`
+      DECLARE @sensorDataId BIGINT;
+
+      SELECT @sensorDataId = ISNULL(MAX(sensor_data_id), 0) + 1
+      FROM dbo.SensorData WITH (UPDLOCK, HOLDLOCK);
+
+      INSERT INTO dbo.SensorData (
+        sensor_data_id,
+        sensor_id,
+        value,
+        unit,
+        [timestamp]
+      )
+      VALUES (
+        @sensorDataId,
+        @sensorId,
+        @sensorValue,
+        @sensorUnit,
+        @sensorTimestamp
+      );
+    `);
+
+  return sensorId;
+}
+
+async function upsertDeviceAndInsertLog({
+  transaction,
+  roomId,
+  deviceType,
+  status,
+}) {
+  const result = await new sql.Request(transaction)
+    .input("roomId", sql.Int, roomId)
+    .input("deviceType", sql.NVarChar(50), deviceType)
+    .input("status", sql.NVarChar(5), status).query(`
+      DECLARE @deviceId INT;
+      DECLARE @prevStatus NVARCHAR(5);
+      DECLARE @logInserted BIT = 0;
+
+      SELECT TOP 1
+        @deviceId = device_id,
+        @prevStatus = device_status
+      FROM dbo.Devices
+      WHERE room_id = @roomId AND device_type = @deviceType
+      ORDER BY device_id;
+
+      IF @deviceId IS NULL
+      BEGIN
+        INSERT INTO dbo.Devices (
+          room_id,
+          device_status,
+          last_update_time,
+          device_type
+        )
+        VALUES (
+          @roomId,
+          @status,
+          SYSUTCDATETIME(),
+          @deviceType
+        );
+
+        SET @deviceId = SCOPE_IDENTITY();
+      END
+      ELSE
+      BEGIN
+        UPDATE dbo.Devices
+        SET device_status = @status,
+            last_update_time = SYSUTCDATETIME()
+        WHERE device_id = @deviceId;
+      END;
+
+      IF @prevStatus IS NULL OR @prevStatus <> @status
+      BEGIN
+        INSERT INTO dbo.DevicesLog (device_id, device_status)
+        VALUES (@deviceId, @status);
+        SET @logInserted = 1;
+      END;
+
+      SELECT @deviceId AS device_id, @logInserted AS log_inserted;
+    `);
+
+  return {
+    deviceId: result.recordset[0].device_id,
+    logInserted: Boolean(result.recordset[0].log_inserted),
+  };
 }
 
 function isOnValue(rawValue) {
@@ -231,6 +476,10 @@ async function getData() {
 
   const deviceId = await getDeviceId();
   const data = await getTelemetry(deviceId);
+  const pool = await getPool();
+  const roomId = await resolveSyncRoomId(undefined, pool);
+
+  await syncCoreIotToDb({ roomId });
 
   return {
     ok: true,
@@ -239,6 +488,101 @@ async function getData() {
     deviceStatus: resolveDeviceStatus(data),
     switches: extractSwitchStates(data),
   };
+}
+
+async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
+  if (!token) {
+    await login();
+  }
+
+  const deviceId = await getDeviceId();
+  const data = await getTelemetry(deviceId);
+
+  const pool = await getPool();
+  const roomId = await resolveSyncRoomId(rawRoomId, pool);
+  const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
+
+  const summary = {
+    roomId,
+    deviceId,
+    sensorsSaved: 0,
+    sensorRowsInserted: 0,
+    devicesSaved: 0,
+    deviceLogsInserted: 0,
+  };
+
+  try {
+    await transaction.begin(sql.ISOLATION_LEVEL.READ_COMMITTED);
+    transactionStarted = true;
+
+    await ensureRoomExists(transaction, roomId);
+    await ensureDeviceTypeColumn(transaction);
+
+    const temperatureEntry = getLatestTelemetryEntry(data, "temperature");
+    const humidityEntry = getLatestTelemetryEntry(data, "humidity");
+
+    const temperatureValue = toFloatOrNull(temperatureEntry?.value);
+    if (temperatureValue !== null) {
+      await upsertSensorAndInsertData({
+        transaction,
+        roomId,
+        sensorType: "TEMPERATURE",
+        sensorName: "Temperature Sensor",
+        sensorValue: temperatureValue,
+        sensorUnit: "C",
+        sensorTimestamp: toUtcDate(temperatureEntry?.ts),
+      });
+      summary.sensorsSaved += 1;
+      summary.sensorRowsInserted += 1;
+    }
+
+    const humidityValue = toFloatOrNull(humidityEntry?.value);
+    if (humidityValue !== null) {
+      await upsertSensorAndInsertData({
+        transaction,
+        roomId,
+        sensorType: "HUMIDITY",
+        sensorName: "Humidity Sensor",
+        sensorValue: humidityValue,
+        sensorUnit: "%",
+        sensorTimestamp: toUtcDate(humidityEntry?.ts),
+      });
+      summary.sensorsSaved += 1;
+      summary.sensorRowsInserted += 1;
+    }
+
+    const switches = extractSwitchStates(data);
+    for (const item of switches) {
+      const saveResult = await upsertDeviceAndInsertLog({
+        transaction,
+        roomId,
+        deviceType: item.type,
+        status: item.status === "ON" ? "ON" : "OFF",
+      });
+      summary.devicesSaved += 1;
+      if (saveResult.logInserted) {
+        summary.deviceLogsInserted += 1;
+      }
+    }
+
+    await transaction.commit();
+
+    return {
+      ok: true,
+      message: "CoreIoT data synced to database",
+      summary,
+    };
+  } catch (err) {
+    if (transactionStarted) {
+      try {
+        await transaction.rollback();
+      } catch (_) {
+        // Ignore rollback errors and preserve original error.
+      }
+    }
+    throw err;
+  }
 }
 
 async function controlDevice({ key, value }) {
@@ -269,4 +613,5 @@ async function controlDevice({ key, value }) {
 module.exports = {
   getData,
   controlDevice,
+  syncCoreIotToDb,
 };

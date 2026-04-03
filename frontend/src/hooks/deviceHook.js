@@ -74,6 +74,7 @@ export function useDeviceData() {
 				}
 
 				const json = await res.json();
+				console.log(json);
 				if (alive) {
 					setPayload(json);
 					setDeviceList(

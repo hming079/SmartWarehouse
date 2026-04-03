@@ -1,5 +1,4 @@
 const iotService = require("./iot.service");
-const { sql, getPool } = require("../../../db");
 
 function resolveError(err) {
   return {
@@ -15,10 +14,6 @@ async function getData(req, res) {
   try {
     const result = await iotService.getData();
     res.json(result);
-    
-    // Insert into dbs
-    
-
   } catch (err) {
     const { status, message } = resolveError(err);
     console.error("GET /api/iot/data failed:", message);
@@ -42,7 +37,24 @@ async function controlDevice(req, res) {
   }
 }
 
+async function syncCoreIotToDb(req, res) {
+  try {
+    const roomId = req?.body?.roomId ?? req?.query?.roomId;
+    const result = await iotService.syncCoreIotToDb({ roomId });
+    res.json(result);
+  } catch (err) {
+    const { status, message } = resolveError(err);
+    console.error("POST /api/iot/sync failed:", {
+      status,
+      message,
+      data: err?.response?.data,
+    });
+    res.status(status).json({ ok: false, error: message });
+  }
+}
+
 module.exports = {
   getData,
   controlDevice,
+  syncCoreIotToDb,
 };
