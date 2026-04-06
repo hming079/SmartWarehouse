@@ -51,6 +51,21 @@ const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
 
 const API_PORT = process.env.REACT_APP_API_PORT || "5001";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
+const DEVICE_NAME_OVERRIDES_KEY = "smartwarehouse.device-name-overrides";
+const DEVICE_HIDDEN_IDS_KEY = "smartwarehouse.device-hidden-ids";
+
+const readStoredValue = (key, fallback) => {
+	if (typeof window === "undefined") {
+		return fallback;
+	}
+
+	try {
+		const raw = window.localStorage.getItem(key);
+		return raw ? JSON.parse(raw) : fallback;
+	} catch (_) {
+		return fallback;
+	}
+};
 
 export function useDeviceData() {
 	const [deviceList, setDeviceList] = useState([]);
@@ -59,9 +74,39 @@ export function useDeviceData() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [payload, setPayload] = useState(null);
+	const [nameOverrides, setNameOverrides] = useState(() =>
+		readStoredValue(DEVICE_NAME_OVERRIDES_KEY, {}),
+	);
+	const [hiddenDeviceIds, setHiddenDeviceIds] = useState(() =>
+		readStoredValue(DEVICE_HIDDEN_IDS_KEY, []),
+	);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		window.localStorage.setItem(DEVICE_NAME_OVERRIDES_KEY, JSON.stringify(nameOverrides));
+	}, [nameOverrides]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		window.localStorage.setItem(DEVICE_HIDDEN_IDS_KEY, JSON.stringify(hiddenDeviceIds));
+	}, [hiddenDeviceIds]);
 
 	useEffect(() => {
 		let alive = true;
+
+		const applyLocalChanges = (devices) =>
+			devices
+				.map((device) => ({
+					...device,
+					name: nameOverrides[device.id] || device.name,
+				}))
+				.filter((device) => !hiddenDeviceIds.includes(device.id));
 
 		async function loadData() {
 			try {
@@ -78,7 +123,7 @@ export function useDeviceData() {
 				if (alive) {
 					setPayload(json);
 					setDeviceList(
-						buildTelemetryDevices(json?.data, json?.deviceStatus, json?.switches),
+						applyLocalChanges(buildTelemetryDevices(json?.data, json?.deviceStatus, json?.switches)),
 					);
 					setDevicesError("");
 				}
@@ -102,7 +147,7 @@ export function useDeviceData() {
 			alive = false;
 			clearInterval(timer);
 		};
-	}, []);
+	}, [hiddenDeviceIds, nameOverrides]);
 
 	const handleToggleDevice = async (id) => {
 		try {
@@ -135,6 +180,34 @@ export function useDeviceData() {
 		}
 	};
 
+	const handleModifyDevice = (id) => {
+		const device = deviceList.find((d) => d.id === id);
+		if (!device || typeof window === "undefined") return;
+
+		const nextName = window.prompt("Enter new device name", device.name || "");
+		if (nextName === null) return;
+
+		const trimmedName = nextName.trim();
+		if (!trimmedName) return;
+
+		setNameOverrides((prev) => ({
+			...prev,
+			[id]: trimmedName,
+		}));
+		setDeviceList((prev) => prev.map((item) => (item.id === id ? { ...item, name: trimmedName } : item)));
+	};
+
+	const handleDeleteDevice = (id) => {
+		const device = deviceList.find((d) => d.id === id);
+		if (!device || typeof window === "undefined") return;
+
+		const confirmed = window.confirm(`Delete ${device.name}?`);
+		if (!confirmed) return;
+
+		setHiddenDeviceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+		setDeviceList((prev) => prev.filter((item) => item.id !== id));
+	};
+
 	return {
 		deviceList,
 		devicesLoading,
@@ -143,5 +216,7 @@ export function useDeviceData() {
 		error,
 		payload,
 		handleToggleDevice,
+		handleModifyDevice,
+		handleDeleteDevice,
 	};
 }
