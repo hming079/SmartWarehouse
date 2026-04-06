@@ -12,7 +12,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/area" replace />} />
           <Route path="/area" element={<AreaManagement />} />
-          <Route path="/devices" element={<Devices />} />
+          <Route path="/devices/:view?" element={<Devices />} />
           <Route path="/automation" element={<Automation />} />
           <Route path="*" element={<Placeholder />} />
         </Routes>

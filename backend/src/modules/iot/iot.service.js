@@ -21,6 +21,12 @@ const DEFAULT_SWITCH_DEFS = [
   { key: "cooler_on", name: "Cooling", type: "ac" },
 ];
 
+const SWITCH_LABELS = {
+  fan_on: "Fan",
+  cooler_on: "Cooler",
+  dryer_on: "Dryer",
+};
+
 let token = "";
 
 function createHttpError(message, status = 500) {
@@ -371,6 +377,11 @@ function toSwitchType(key) {
 }
 
 function formatSwitchName(key) {
+  const mappedLabel = SWITCH_LABELS[String(key || "").toLowerCase()];
+  if (mappedLabel) {
+    return mappedLabel;
+  }
+
   return String(key || "")
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")

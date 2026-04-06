@@ -38,7 +38,7 @@ const Sidebar = () => {
 
       <nav className="flex flex-1 flex-col gap-2">
         {menuItems.map(({ label, path, icon: Icon }) => {
-          const active = pathname === path;
+          const active = pathname === path || pathname.startsWith(`${path}/`);
           return (
             <button
               key={label}
