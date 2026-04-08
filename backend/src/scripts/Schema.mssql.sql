@@ -26,6 +26,7 @@ IF OBJECT_ID(N'dbo.Locations', N'U') IS NOT NULL DROP TABLE dbo.Locations;
 IF OBJECT_ID(N'dbo.RolePermissions', N'U') IS NOT NULL DROP TABLE dbo.RolePermissions;
 IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL DROP TABLE dbo.Users;
 IF OBJECT_ID(N'dbo.Role', N'U') IS NOT NULL DROP TABLE dbo.Role;
+IF OBJECT_ID(N'dbo.AutomationRules', N'U') IS NOT NULL DROP TABLE dbo.AutomationRules;
 IF OBJECT_ID(N'dbo.Shedules', N'U') IS NOT NULL DROP TABLE dbo.Shedules;
 IF OBJECT_ID(N'dbo.FoodTypes', N'U') IS NOT NULL DROP TABLE dbo.FoodTypes;
 GO
@@ -104,6 +105,21 @@ CREATE TABLE dbo.Shedules (
 );
 GO
 
+CREATE TABLE dbo.AutomationRules (
+  rule_id INT NOT NULL PRIMARY KEY,
+  name NVARCHAR(255) NOT NULL,
+  apply_to NVARCHAR(255) NOT NULL,
+  food_type NVARCHAR(255) NOT NULL,
+  metric NVARCHAR(50) NOT NULL,
+  compare_op NVARCHAR(20) NOT NULL,
+  threshold_value FLOAT NOT NULL,
+  action_name NVARCHAR(255) NOT NULL,
+  alert_level NVARCHAR(20) NOT NULL,
+  is_active BIT NOT NULL DEFAULT (1),
+  created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
+);
+GO
+
 CREATE TABLE dbo.Threshold (
   threshold_id INT NOT NULL PRIMARY KEY,
   min_threshold FLOAT,
@@ -178,6 +194,7 @@ GO
 CREATE TABLE dbo.Devices (
   device_id INT IDENTITY(1,1) NOT NULL,
   room_id INT NOT NULL,
+  device_name NVARCHAR(255) NULL,
   device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
   last_update_time DATETIME2 NULL,
   device_type NVARCHAR(50) NULL,
