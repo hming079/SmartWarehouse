@@ -1,8 +1,6 @@
-const express = require("express");
-const userController = require("./user.controller");
-
-const router = express.Router();
-
-router.get("/", userController.listUsers);
-
-module.exports = router;
+{
+    TABS.map((tab) => (
+        key = {tab.key},
+        to = {`/devices/${tab.key}`}
+    ))
+}

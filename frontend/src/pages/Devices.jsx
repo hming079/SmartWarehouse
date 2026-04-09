@@ -25,6 +25,7 @@ const Devices = () => {
     handleToggleDevice,
     handleModifyDevice,
     handleDeleteDevice,
+    handleAddDevice,
   } = useDeviceData();
 
   if (!isCardView && !isListView) {
@@ -51,6 +52,15 @@ const Devices = () => {
             {tab.label}
           </NavLink>
         ))}
+      </div>
+      {/* Add device button */}
+      <div className="mb-4 flex justify-start">
+        <button
+          onClick={handleAddDevice}
+          className="rounded-xl bg-[#6c4fd3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5d41c2] focus:outline-none focus:ring-2 focus:ring-[#6c4fd3] focus:ring-offset-2"
+        >
+          + Add Device
+        </button> 
       </div>
       {/* Content */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+
+// Utility mappers
 const toUiStatus = (status) =>
 	String(status || "").toUpperCase() === "ON" ? "on" : "off";
 
@@ -15,7 +17,8 @@ const toUiType = (type, name) => {
 	return "lights";
 };
 
-const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
+// Telemetry transformation
+const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 	const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
 	const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
 	const status = toUiStatus(deviceStatus);
@@ -123,7 +126,7 @@ export function useDeviceData() {
 				if (alive) {
 					setPayload(json);
 					setDeviceList(
-						applyLocalChanges(buildTelemetryDevices(json?.data, json?.deviceStatus, json?.switches)),
+						applyLocalChanges(buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches)),
 					);
 					setDevicesError("");
 				}
@@ -208,6 +211,61 @@ export function useDeviceData() {
 		setDeviceList((prev) => prev.filter((item) => item.id !== id));
 	};
 
+	const handleAddDevice = async () => {
+		if (typeof window === "undefined") return;
+
+		// Input device type
+		const typeInput = window.prompt("Device type (fan, ac, lights, dryer...)", "fan");
+		if (typeInput === null) return;
+
+		const type = typeInput.trim() || "switch";
+		const roomIdCandidate = payload?.roomId ?? process.env.REACT_APP_IOT_DEFAULT_ROOM_ID;
+		const roomId = Number(roomIdCandidate);
+		if (!Number.isInteger(roomId) || roomId <= 0) {
+			setDevicesError("Missing roomId. Configure IOT_DEFAULT_ROOM_ID on backend or REACT_APP_IOT_DEFAULT_ROOM_ID on frontend.");
+			return;
+		}
+
+		setDevicesError("");
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/iot/rooms/${roomId}/switches`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ type }),
+			});
+
+			const result = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				setDevicesError(result.error || "Cannot add device");
+				return;
+			}
+
+			const newSwitch = result?.switch;
+			if (!newSwitch?.key) {
+				setDevicesError("Device created but payload is invalid");
+				return;
+			}
+
+			setDeviceList((prev) => {
+				if (prev.some((item) => item.id === `switch-${newSwitch.key}`)) {
+					return prev;
+				}
+
+				return [
+					...prev,
+					{
+						id: `switch-${newSwitch.key}`,
+						name: newSwitch.name || newSwitch.key,
+						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
+						status: "off",
+					},
+				];
+			});
+		} catch (err) {
+			setDevicesError(`Lỗi kết nối: ${err.message}`);
+		}
+	};
+
 	return {
 		deviceList,
 		devicesLoading,
@@ -218,5 +276,6 @@ export function useDeviceData() {
 		handleToggleDevice,
 		handleModifyDevice,
 		handleDeleteDevice,
+		handleAddDevice,
 	};
 }
