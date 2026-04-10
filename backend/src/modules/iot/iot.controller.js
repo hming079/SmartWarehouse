@@ -55,8 +55,8 @@ async function syncCoreIotToDb(req, res) {
 
 async function registerSwitch(req, res) {
   try {
-    const roomId = req?.params?.roomId;
-    const result = await iotService.registerSwitch({ roomId, ...(req.body || {}) });
+    const roomId = req?.params?.roomId ?? req?.body?.roomId ?? req?.body?.room_id;
+    const result = await iotService.registerSwitch({ ...(req.body || {}), roomId });
     res.status(201).json(result);
   } catch (err) {
     const { status, message } = resolveError(err);

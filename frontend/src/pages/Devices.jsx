@@ -1,4 +1,5 @@
 import { NavLink, Navigate, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
 import Card from "../components/ui/Card";
 import DeviceGrid from "../components/device/DeviceGrid";
 import TemperatureWidget from "../components/device/TemperatureWidget";
@@ -27,13 +28,66 @@ const Devices = () => {
     handleDeleteDevice,
     handleAddDevice,
   } = useDeviceData();
+  const [sortConfig, setSortConfig] = useState({ key: "deviceName", direction: "asc" });
+
+  const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
+  const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
+
+  const getDeviceNameValue = (device) => String(device.deviceName || device.name || "").toLowerCase();
+
+  const sortedDeviceList = useMemo(() => {
+    const list = [...deviceList];
+
+    list.sort((a, b) => {
+      let aValue;
+      let bValue;
+
+      if (sortConfig.key === "deviceName") {
+        aValue = getDeviceNameValue(a);
+        bValue = getDeviceNameValue(b);
+      } else if (sortConfig.key === "type") {
+        aValue = String(a.type || "").toLowerCase();
+        bValue = String(b.type || "").toLowerCase();
+      } else if (sortConfig.key === "status") {
+        aValue = String(a.status || "").toLowerCase();
+        bValue = String(b.status || "").toLowerCase();
+      } else {
+        aValue = "";
+        bValue = "";
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+
+      const aId = Number(a.deviceId);
+      const bId = Number(b.deviceId);
+      if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) {
+        return sortConfig.direction === "asc" ? aId - bId : bId - aId;
+      }
+
+      return 0;
+    });
+
+    return list;
+  }, [deviceList, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortArrow = (key) => {
+    if (sortConfig.key !== key) return "↕";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
+  };
 
   if (!isCardView && !isListView) {
     return <Navigate to="/devices/card" replace />;
   }
-
-  const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
-  const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
 
   return (
     <section>
@@ -99,16 +153,45 @@ const Devices = () => {
                 <table className="min-w-full rounded-xl bg-white text-sm text-[#1d1645]">
                   <thead>
                     <tr className="border-b border-[#e8def8] text-left">
-                      <th className="px-4 py-3 font-semibold">Device</th>
-                      <th className="px-4 py-3 font-semibold">Type</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("deviceName")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Device Name <span className="text-lg font-bold leading-none">{sortArrow("deviceName")}</span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("type")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Type <span className="text-lg font-bold leading-none">{sortArrow("type")}</span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("status")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Status <span className="text-lg font-bold leading-none">{sortArrow("status")}</span>
+                        </button>
+                      </th>
                       <th className="px-4 py-3 font-semibold">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {deviceList.map((device) => (
+                    {sortedDeviceList.map((device) => (
                       <tr key={device.id} className="border-b border-[#f2ecfb] last:border-b-0">
-                        <td className="px-4 py-3 font-medium">{device.name}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {(device.deviceName || device.name || "N/A")}
+                          {device.deviceId !== undefined && device.deviceId !== null
+                            ? `_${device.deviceId}`
+                            : ""}
+                        </td>
                         <td className="px-4 py-3 capitalize">{device.type}</td>
                         <td className="px-4 py-3 uppercase">{device.status}</td>
                         <td className="px-4 py-3">

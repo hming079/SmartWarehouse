@@ -171,6 +171,35 @@ async function connectWithRetry() {
   throw lastError;
 }
 
+function isMissingDatabaseError(err) {
+  const message = String(err?.message || "").toLowerCase();
+  return (
+    message.includes("cannot open database") &&
+    message.includes(String(dbConfig.database || "").toLowerCase())
+  );
+}
+
+async function ensureDatabaseExists() {
+  const databaseName = String(dbConfig.database || "").trim();
+  if (!databaseName) {
+    throw new Error("DB_NAME is required to ensure database exists.");
+  }
+
+  const escapedName = databaseName.replace(/]/g, "]]");
+  const masterConfig = {
+    ...dbConfig,
+    database: "master",
+  };
+
+  await sql.connect(masterConfig);
+  await sql
+    .request()
+    .batch(
+      `IF DB_ID(N'${databaseName.replace(/'/g, "''")}') IS NULL CREATE DATABASE [${escapedName}]`,
+    );
+  await sql.close();
+}
+
 function getPool() {
   if (!poolPromise) {
     validateDbConfig();
@@ -180,6 +209,22 @@ function getPool() {
         await runAutoInitIfEnabled(pool);
         return pool;
       } catch (err) {
+        if (isMissingDatabaseError(err)) {
+          try {
+            await sql.close();
+          } catch (_) {
+            // Ignore close errors before attempting recovery.
+          }
+
+          console.log(
+            `[db] Database ${dbConfig.database} not found, creating automatically...`,
+          );
+          await ensureDatabaseExists();
+          const recoveredPool = await connectWithRetry();
+          await runAutoInitIfEnabled(recoveredPool);
+          return recoveredPool;
+        }
+
         poolPromise = undefined;
         autoInitPromise = undefined;
         try {

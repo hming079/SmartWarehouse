@@ -27,8 +27,12 @@ const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 		? switches.map((item) => ({
 				id: `switch-${item.key}`,
 				name: item.name || item.key || "Switch",
+				deviceName: item.deviceName || item.name || item.key || "Switch",
+				deviceId: item.deviceId ?? null,
+				deviceKey: item.key || null,
 				status: toUiStatus(item.status),
 				type: toUiType(item.type, item.name || item.key),
+				isConnected: item.isConnected !== false,
 			}))
 		: [];
 
@@ -40,14 +44,22 @@ const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 		{
 			id: "telemetry-temperature",
 			name: Number.isNaN(tempValue) ? "Temperature" : `Temperature (${tempValue.toFixed(1)} C)`,
+			deviceName: "Temperature",
+			deviceId: null,
+			deviceKey: "temperature",
 			status,
 			type: "temperature",
+			isConnected: true,
 		},
 		{
 			id: "telemetry-humidity",
 			name: Number.isNaN(humValue) ? "Humidity" : `Humidity (${humValue.toFixed(1)}%)`,
+			deviceName: "Humidity",
+			deviceId: null,
+			deviceKey: "humidity",
 			status,
 			type: "humidity",
+			isConnected: true,
 		},
 	];
 };
@@ -163,6 +175,15 @@ export function useDeviceData() {
 
 			setDevicesError("");
 
+			// If device is not connected to IoT, only update local UI
+			if (!device.isConnected) {
+				setDeviceList((prev) =>
+					prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d)),
+				);
+				return;
+			}
+
+			// For connected devices, send control to IoT server
 			const response = await fetch(`${API_BASE_URL}/api/iot/control`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -256,6 +277,9 @@ export function useDeviceData() {
 					{
 						id: `switch-${newSwitch.key}`,
 						name: newSwitch.name || newSwitch.key,
+						deviceName: newSwitch.name || newSwitch.key,
+						deviceId: newSwitch.deviceId ?? null,
+						deviceKey: newSwitch.key,
 						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
 						status: "off",
 					},
