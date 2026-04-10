@@ -643,13 +643,13 @@ function mergeIotAndDbDevices(iotSwitches, dbDevices) {
   return result;
 }
 
-async function getData() {
+async function getData({ roomId: rawRoomId } = {}) {
   if (!token) {
     await login();
   }
 
   const pool = await getPool();
-  const roomId = await resolveSyncRoomId(undefined, pool);
+  const roomId = await resolveSyncRoomId(rawRoomId, pool);
   const deviceId = await getDeviceId();
   const data = await getTelemetry(deviceId, roomId);
 

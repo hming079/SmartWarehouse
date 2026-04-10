@@ -12,7 +12,8 @@ function resolveError(err) {
 
 async function getData(req, res) {
   try {
-    const result = await iotService.getData();
+    const roomId = req?.query?.roomId ?? req?.body?.roomId ?? req?.body?.room_id;
+    const result = await iotService.getData({ roomId });
     res.json(result);
   } catch (err) {
     const { status, message } = resolveError(err);

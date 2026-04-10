@@ -1,5 +1,5 @@
-import { NavLink, Navigate, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { NavLink, Navigate, useParams, useNavigate, useLocation } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/ui/Card";
 import DeviceGrid from "../components/device/DeviceGrid";
 import TemperatureWidget from "../components/device/TemperatureWidget";
@@ -11,11 +11,56 @@ const DEVICE_VIEW_TABS = [
   { key: "list", label: "List form" },
 ];
 
+const DEVICE_VIEW_PREF_KEY = "smartwarehouse.device-view-preference";
+const DEVICE_SORT_PREF_KEY = "smartwarehouse.device-sort-preference";
+
 const Devices = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { view = "card" } = useParams();
   const normalizedView = String(view).toLowerCase();
   const isCardView = normalizedView === "card";
   const isListView = normalizedView === "list";
+
+  // Save view preference when it changes
+  useEffect(() => {
+    if ((isCardView || isListView) && typeof window !== "undefined") {
+      window.localStorage.setItem(DEVICE_VIEW_PREF_KEY, normalizedView);
+    }
+  }, [normalizedView, isCardView, isListView]);
+
+  // Load and restore saved view preference
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(DEVICE_VIEW_PREF_KEY);
+      // If no view specified in URL (defaults to card) and we have a saved preference that's different, navigate to it
+      if (view === "card" && saved && saved !== "card") {
+        navigate(
+          {
+            pathname: `/devices/${saved}`,
+            search: location.search,
+          },
+          { replace: true },
+        );
+      } else if (!view || view === "card") {
+        // Ensure we're always on a valid view
+        const preferredView = saved || "card";
+        if (preferredView !== "card") {
+          navigate(
+            {
+              pathname: `/devices/${preferredView}`,
+              search: location.search,
+            },
+            { replace: true },
+          );
+        }
+      }
+    } catch (_) {
+      // Silently fail
+    }
+  }, [view, navigate, location.search]);
   const {
     deviceList,
     devicesLoading,
@@ -28,7 +73,26 @@ const Devices = () => {
     handleDeleteDevice,
     handleAddDevice,
   } = useDeviceData();
-  const [sortConfig, setSortConfig] = useState({ key: "deviceName", direction: "asc" });
+
+  // Initialize sort config from localStorage
+  const [sortConfig, setSortConfig] = useState(() => {
+    if (typeof window === "undefined") {
+      return { key: "deviceName", direction: "asc" };
+    }
+    try {
+      const saved = window.localStorage.getItem(DEVICE_SORT_PREF_KEY);
+      return saved ? JSON.parse(saved) : { key: "deviceName", direction: "asc" };
+    } catch (_) {
+      return { key: "deviceName", direction: "asc" };
+    }
+  });
+
+  // Save sort config to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DEVICE_SORT_PREF_KEY, JSON.stringify(sortConfig));
+    }
+  }, [sortConfig]);
 
   const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
   const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
@@ -86,7 +150,15 @@ const Devices = () => {
   };
 
   if (!isCardView && !isListView) {
-    return <Navigate to="/devices/card" replace />;
+    return (
+      <Navigate
+        to={{
+          pathname: "/devices/card",
+          search: location.search,
+        }}
+        replace
+      />
+    );
   }
 
   return (
@@ -96,7 +168,10 @@ const Devices = () => {
         {DEVICE_VIEW_TABS.map((tab) => (
           <NavLink
             key={tab.key}
-            to={`/devices/${tab.key}`}
+            to={{
+              pathname: `/devices/${tab.key}`,
+              search: location.search,
+            }}
             className={({ isActive }) =>
               `rounded-xl px-4 py-2 text-l font-semibold transition ${
                 isActive ? "bg-white text-[#1d1645]" : "text-[#1d1645]"

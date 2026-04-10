@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 
 // Utility mappers
@@ -83,6 +84,8 @@ const readStoredValue = (key, fallback) => {
 };
 
 export function useDeviceData() {
+	const [searchParams] = useSearchParams();
+	const roomIdParam = searchParams.get("roomId");
 	const [deviceList, setDeviceList] = useState([]);
 	const [devicesLoading, setDevicesLoading] = useState(true);
 	const [devicesError, setDevicesError] = useState("");
@@ -128,13 +131,17 @@ export function useDeviceData() {
 				setLoading(true);
 				setError("");
 
-				const res = await fetch(`${API_BASE_URL}/api/iot/data`);
+				const url = new URL(`${API_BASE_URL}/api/iot/data`);
+				if (roomIdParam) {
+					url.searchParams.append("roomId", roomIdParam);
+				}
+
+				const res = await fetch(url.toString());
 				if (!res.ok) {
 					throw new Error("Request failed with status " + res.status);
 				}
 
 				const json = await res.json();
-				console.log(json);
 				if (alive) {
 					setPayload(json);
 					setDeviceList(
@@ -162,7 +169,7 @@ export function useDeviceData() {
 			alive = false;
 			clearInterval(timer);
 		};
-	}, [hiddenDeviceIds, nameOverrides]);
+	}, [hiddenDeviceIds, nameOverrides, roomIdParam]);
 
 	const handleToggleDevice = async (id) => {
 		try {
@@ -240,10 +247,11 @@ export function useDeviceData() {
 		if (typeInput === null) return;
 
 		const type = typeInput.trim() || "switch";
-		const roomIdCandidate = payload?.roomId ?? process.env.REACT_APP_IOT_DEFAULT_ROOM_ID;
+		// Use roomIdParam from URL first, fallback to environment variable
+		const roomIdCandidate = roomIdParam ?? process.env.REACT_APP_IOT_DEFAULT_ROOM_ID;
 		const roomId = Number(roomIdCandidate);
 		if (!Number.isInteger(roomId) || roomId <= 0) {
-			setDevicesError("Missing roomId. Configure IOT_DEFAULT_ROOM_ID on backend or REACT_APP_IOT_DEFAULT_ROOM_ID on frontend.");
+			setDevicesError("Please select a room first or configure REACT_APP_IOT_DEFAULT_ROOM_ID.");
 			return;
 		}
 
