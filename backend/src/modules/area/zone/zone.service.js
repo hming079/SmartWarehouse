@@ -2,6 +2,17 @@ const { sql, getPool } = require("../../../../db");
 
 async function listZones(locationId) {
   const pool = await getPool();
+  
+  if (!locationId) {
+    // Return all zones if locationId not provided
+    const result = await pool
+      .request()
+      .query(
+        "SELECT zone_id, location_id, name FROM Zones ORDER BY zone_id",
+      );
+    return result.recordset;
+  }
+
   const result = await pool
     .request()
     .input("location_id", sql.Int, locationId)

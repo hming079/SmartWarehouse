@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
+
+// Utility mappers
 const toUiStatus = (status) =>
 	String(status || "").toUpperCase() === "ON" ? "on" : "off";
 
@@ -15,7 +18,8 @@ const toUiType = (type, name) => {
 	return "lights";
 };
 
-const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
+// Telemetry transformation
+const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 	const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
 	const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
 	const status = toUiStatus(deviceStatus);
@@ -24,8 +28,12 @@ const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
 		? switches.map((item) => ({
 				id: `switch-${item.key}`,
 				name: item.name || item.key || "Switch",
+				deviceName: item.deviceName || item.name || item.key || "Switch",
+				deviceId: item.deviceId ?? null,
+				deviceKey: item.key || null,
 				status: toUiStatus(item.status),
 				type: toUiType(item.type, item.name || item.key),
+				isConnected: item.isConnected !== false,
 			}))
 		: [];
 
@@ -37,14 +45,22 @@ const buildTelemetryDevices = (data, deviceStatus, switches = []) => {
 		{
 			id: "telemetry-temperature",
 			name: Number.isNaN(tempValue) ? "Temperature" : `Temperature (${tempValue.toFixed(1)} C)`,
+			deviceName: "Temperature",
+			deviceId: null,
+			deviceKey: "temperature",
 			status,
 			type: "temperature",
+			isConnected: true,
 		},
 		{
 			id: "telemetry-humidity",
 			name: Number.isNaN(humValue) ? "Humidity" : `Humidity (${humValue.toFixed(1)}%)`,
+			deviceName: "Humidity",
+			deviceId: null,
+			deviceKey: "humidity",
 			status,
 			type: "humidity",
+			isConnected: true,
 		},
 	];
 };
@@ -68,6 +84,8 @@ const readStoredValue = (key, fallback) => {
 };
 
 export function useDeviceData() {
+	const [searchParams] = useSearchParams();
+	const roomIdParam = searchParams.get("roomId");
 	const [deviceList, setDeviceList] = useState([]);
 	const [devicesLoading, setDevicesLoading] = useState(true);
 	const [devicesError, setDevicesError] = useState("");
@@ -113,17 +131,21 @@ export function useDeviceData() {
 				setLoading(true);
 				setError("");
 
-				const res = await fetch(`${API_BASE_URL}/api/iot/data`);
+				const url = new URL(`${API_BASE_URL}/api/iot/data`);
+				if (roomIdParam) {
+					url.searchParams.append("roomId", roomIdParam);
+				}
+
+				const res = await fetch(url.toString());
 				if (!res.ok) {
 					throw new Error("Request failed with status " + res.status);
 				}
 
 				const json = await res.json();
-				console.log(json);
 				if (alive) {
 					setPayload(json);
 					setDeviceList(
-						applyLocalChanges(buildTelemetryDevices(json?.data, json?.deviceStatus, json?.switches)),
+						applyLocalChanges(buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches)),
 					);
 					setDevicesError("");
 				}
@@ -147,7 +169,7 @@ export function useDeviceData() {
 			alive = false;
 			clearInterval(timer);
 		};
-	}, [hiddenDeviceIds, nameOverrides]);
+	}, [hiddenDeviceIds, nameOverrides, roomIdParam]);
 
 	const handleToggleDevice = async (id) => {
 		try {
@@ -160,6 +182,15 @@ export function useDeviceData() {
 
 			setDevicesError("");
 
+			// If device is not connected to IoT, only update local UI
+			if (!device.isConnected) {
+				setDeviceList((prev) =>
+					prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d)),
+				);
+				return;
+			}
+
+			// For connected devices, send control to IoT server
 			const response = await fetch(`${API_BASE_URL}/api/iot/control`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -208,6 +239,65 @@ export function useDeviceData() {
 		setDeviceList((prev) => prev.filter((item) => item.id !== id));
 	};
 
+	const handleAddDevice = async () => {
+		if (typeof window === "undefined") return;
+
+		// Input device type
+		const typeInput = window.prompt("Device type (fan, ac, lights, dryer...)", "fan");
+		if (typeInput === null) return;
+
+		const type = typeInput.trim() || "switch";
+		// Use roomIdParam from URL first, fallback to environment variable
+		const roomIdCandidate = roomIdParam ?? process.env.REACT_APP_IOT_DEFAULT_ROOM_ID;
+		const roomId = Number(roomIdCandidate);
+		if (!Number.isInteger(roomId) || roomId <= 0) {
+			setDevicesError("Please select a room first or configure REACT_APP_IOT_DEFAULT_ROOM_ID.");
+			return;
+		}
+
+		setDevicesError("");
+		try {
+			const response = await fetch(`${API_BASE_URL}/api/iot/rooms/${roomId}/switches`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ type }),
+			});
+
+			const result = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				setDevicesError(result.error || "Cannot add device");
+				return;
+			}
+
+			const newSwitch = result?.switch;
+			if (!newSwitch?.key) {
+				setDevicesError("Device created but payload is invalid");
+				return;
+			}
+
+			setDeviceList((prev) => {
+				if (prev.some((item) => item.id === `switch-${newSwitch.key}`)) {
+					return prev;
+				}
+
+				return [
+					...prev,
+					{
+						id: `switch-${newSwitch.key}`,
+						name: newSwitch.name || newSwitch.key,
+						deviceName: newSwitch.name || newSwitch.key,
+						deviceId: newSwitch.deviceId ?? null,
+						deviceKey: newSwitch.key,
+						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
+						status: "off",
+					},
+				];
+			});
+		} catch (err) {
+			setDevicesError(`Lỗi kết nối: ${err.message}`);
+		}
+	};
+
 	return {
 		deviceList,
 		devicesLoading,
@@ -218,5 +308,6 @@ export function useDeviceData() {
 		handleToggleDevice,
 		handleModifyDevice,
 		handleDeleteDevice,
+		handleAddDevice,
 	};
 }

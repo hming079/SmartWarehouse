@@ -2,10 +2,7 @@ const roomService = require("./room.service");
 
 async function getRooms(req, res, next) {
   try {
-    const floorId = Number(req.query.floorId);
-    if (!floorId) {
-      return res.status(400).json({ message: "floorId is required" });
-    }
+    const floorId = req.query.floorId ? Number(req.query.floorId) : null;
 
     const data = await roomService.listRooms(floorId);
     res.json({ data });

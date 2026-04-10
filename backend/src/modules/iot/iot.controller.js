@@ -12,7 +12,8 @@ function resolveError(err) {
 
 async function getData(req, res) {
   try {
-    const result = await iotService.getData();
+    const roomId = req?.query?.roomId ?? req?.body?.roomId ?? req?.body?.room_id;
+    const result = await iotService.getData({ roomId });
     res.json(result);
   } catch (err) {
     const { status, message } = resolveError(err);
@@ -53,8 +54,25 @@ async function syncCoreIotToDb(req, res) {
   }
 }
 
+async function registerSwitch(req, res) {
+  try {
+    const roomId = req?.params?.roomId ?? req?.body?.roomId ?? req?.body?.room_id;
+    const result = await iotService.registerSwitch({ ...(req.body || {}), roomId });
+    res.status(201).json(result);
+  } catch (err) {
+    const { status, message } = resolveError(err);
+    console.error("POST /api/iot/rooms/:roomId/switches failed:", {
+      status,
+      message,
+      data: err?.response?.data,
+    });
+    res.status(status).json({ ok: false, error: message });
+  }
+}
+
 module.exports = {
   getData,
   controlDevice,
   syncCoreIotToDb,
+  registerSwitch,
 };

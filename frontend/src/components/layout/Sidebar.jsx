@@ -9,12 +9,12 @@ import {
   MapPinned,
   SlidersHorizontal,
 } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 const menuItems = [
   { label: "Home", path: "/home", icon: Home },
   { label: "Area", path: "/area", icon: MapPinned },
-  { label: "Devices", path: "/devices", icon: Grid3X3 },
+  { label: "Devices", path: "/devices", icon: Grid3X3, useDeviceView: true },
   { label: "Automation", path: "/automation", icon: SlidersHorizontal },
   { label: "Alerts", path: "/alerts", icon: Bell },
   { label: "Schedules", path: "/schedules", icon: CalendarClock },
@@ -26,6 +26,28 @@ const menuItems = [
 const Sidebar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const handleNavigate = (path, useDeviceView = false) => {
+    let fullPath = path;
+
+    // For Devices page, include saved view preference (card/list)
+    if (useDeviceView) {
+      try {
+        const savedView = typeof window !== "undefined" 
+          ? window.localStorage.getItem("smartwarehouse.device-view-preference") || "card"
+          : "card";
+        fullPath = `${path}/${savedView}`;
+      } catch (_) {
+        fullPath = `${path}/card`;
+      }
+    }
+
+    // Preserve query params (areaId, floorId, roomId) when navigating
+    const queryString = searchParams.toString();
+    fullPath = queryString ? `${fullPath}?${queryString}` : fullPath;
+    navigate(fullPath);
+  };
 
   return (
     <aside className="flex min-h-screen w-[200px] flex-col bg-gradient-to-b from-[#1a0b3b] to-[#2d0b5a] p-3 text-white lg:w-[210px]">
@@ -37,12 +59,12 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
-        {menuItems.map(({ label, path, icon: Icon }) => {
+        {menuItems.map(({ label, path, icon: Icon, useDeviceView }) => {
           const active = pathname === path || pathname.startsWith(`${path}/`);
           return (
             <button
               key={label}
-              onClick={() => navigate(path)}
+              onClick={() => handleNavigate(path, useDeviceView)}
               className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition ${
                 active ? "bg-purple-500 font-semibold text-white shadow" : "text-white/85 hover:bg-white/10"
               }`}

@@ -28,6 +28,53 @@ const SWITCH_LABELS = {
 };
 
 let token = "";
+const customSwitchDefs = [];
+
+function sanitizeSwitchKey(rawKey) {
+  const normalized = String(rawKey || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_\-\s]/g, "")
+    .replace(/[\s\-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (!normalized) {
+    throw createHttpError("Invalid switch key", 400);
+  }
+
+  return normalized;
+}
+
+function normalizeSwitchType(rawType, key) {
+  const resolved = String(rawType || key || "").trim().toLowerCase();
+  if (!resolved) {
+    return "switch";
+  }
+  return toSwitchType(resolved);
+}
+
+function getAllSwitchDefs(roomId) {
+  const normalizedRoomId = Number(roomId);
+  const roomCustomDefs = Number.isInteger(normalizedRoomId)
+    ? customSwitchDefs.filter((item) => item.roomId === normalizedRoomId)
+    : customSwitchDefs;
+
+  return [...DEFAULT_SWITCH_DEFS, ...roomCustomDefs];
+}
+
+function buildTelemetryKeys(roomId) {
+  const dynamicKeys = getAllSwitchDefs(roomId).map((item) => item.key);
+  return Array.from(new Set([...DEFAULT_TELEMETRY_KEYS, ...dynamicKeys]));
+}
+
+function buildSwitchKey(roomId, type) {
+  const safeType = sanitizeSwitchKey(type || "switch");
+  const sameRoomTypeCount = customSwitchDefs.filter(
+    (item) => item.roomId === roomId && item.type === safeType,
+  ).length;
+  const nextIndex = sameRoomTypeCount + 1;
+  return `${safeType}_${roomId}_${nextIndex}`;
+}
 
 function createHttpError(message, status = 500) {
   const error = new Error(message);
@@ -95,8 +142,8 @@ async function getDeviceId() {
   return devices[0].id.id;
 }
 
-async function getTelemetry(deviceId) {
-  const keys = DEFAULT_TELEMETRY_KEYS.join(",");
+async function getTelemetry(deviceId, roomId) {
+  const keys = buildTelemetryKeys(roomId).join(",");
   const url = `${BASE_URL}/api/plugins/telemetry/DEVICE/${deviceId}/values/timeseries?keys=${keys}`;
 
   const res = await requestWithAutoRelogin(() =>
@@ -376,7 +423,12 @@ function toSwitchType(key) {
   return lower;
 }
 
-function formatSwitchName(key) {
+function formatSwitchName(key, switchDefs = getAllSwitchDefs()) {
+  const matchedSwitchDef = switchDefs.find((item) => item.key === String(key || "").toLowerCase());
+  if (matchedSwitchDef?.name) {
+    return matchedSwitchDef.name;
+  }
+
   const mappedLabel = SWITCH_LABELS[String(key || "").toLowerCase()];
   if (mappedLabel) {
     return mappedLabel;
@@ -389,7 +441,7 @@ function formatSwitchName(key) {
     .replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
-function extractSwitchStates(data) {
+function extractSwitchStates(data, switchDefs = getAllSwitchDefs()) {
   const ignored = new Set(["temperature", "humidity"]);
   const result = [];
   const seenKeys = new Set();
@@ -435,17 +487,20 @@ function extractSwitchStates(data) {
 
     seenKeys.add(lowerKey);
 
+    const matchedSwitchDef = switchDefs.find((item) => item.key === lowerKey);
+    const resolvedType = matchedSwitchDef?.type || toSwitchType(key);
+
     const status = raw ? (isOnValue(raw) ? "ON" : "OFF") : "OFF";
     result.push({
       key,
       name: formatSwitchName(key),
-      type: toSwitchType(key),
+      type: resolvedType,
       status,
       raw: raw || null,
     });
   });
 
-  DEFAULT_SWITCH_DEFS.forEach((item) => {
+  switchDefs.forEach((item) => {
     if (seenKeys.has(item.key)) {
       return;
     }
@@ -460,6 +515,38 @@ function extractSwitchStates(data) {
   });
 
   return result;
+}
+
+function registerSwitch({ roomId, room_id: roomIdAlt, type, key } = {}) {
+  const normalizedRoomId = normalizeRoomId(roomId ?? roomIdAlt);
+  const normalizedType = normalizeSwitchType(type, key);
+  const normalizedKey = key
+    ? sanitizeSwitchKey(key)
+    : buildSwitchKey(normalizedRoomId, normalizedType);
+  const normalizedName = formatSwitchName(normalizedKey, getAllSwitchDefs(normalizedRoomId));
+
+  const existsInDefaults = DEFAULT_SWITCH_DEFS.some((item) => item.key === normalizedKey);
+  const existsInCustom = customSwitchDefs.some(
+    (item) => item.key === normalizedKey && item.roomId === normalizedRoomId,
+  );
+  if (existsInDefaults || existsInCustom) {
+    throw createHttpError(`Switch key '${normalizedKey}' already exists`, 409);
+  }
+
+  const newSwitch = {
+    roomId: normalizedRoomId,
+    key: normalizedKey,
+    name: normalizedName,
+    type: normalizedType,
+  };
+
+  customSwitchDefs.push(newSwitch);
+
+  return {
+    ok: true,
+    message: "Switch added",
+    switch: newSwitch,
+  };
 }
 
 function resolveDeviceStatus(data) {
@@ -480,24 +567,105 @@ function resolveDeviceStatus(data) {
   return "OFF";
 }
 
-async function getData() {
+async function getDevicesFromDb(pool, roomId) {
+  const result = await new sql.Request(pool)
+    .input("roomId", sql.Int, roomId)
+    .query(`
+      SELECT device_id, device_type, device_status, last_update_time
+      FROM dbo.Devices
+      WHERE room_id = @roomId
+      ORDER BY device_id
+    `);
+
+  return result.recordset || [];
+}
+
+function mergeIotAndDbDevices(iotSwitches, dbDevices) {
+  const iotKeysMap = new Set(iotSwitches.map((s) => String(s.key || "").toLowerCase()));
+  const dbByKey = new Map(
+    (dbDevices || []).map((item) => [String(item.device_type || "").toLowerCase(), item]),
+  );
+  const dbByTypeBuckets = new Map();
+  (dbDevices || []).forEach((item) => {
+    const bucketKey = String(toSwitchType(item.device_type || "")).toLowerCase();
+    const bucket = dbByTypeBuckets.get(bucketKey) || [];
+    bucket.push(item);
+    dbByTypeBuckets.set(bucketKey, bucket);
+  });
+  const result = [];
+
+  // Add IoT switches with isConnected: true
+  iotSwitches.forEach((s) => {
+    const normalizedKey = String(s.key || "").toLowerCase();
+    let matchedDb = dbByKey.get(normalizedKey) || null;
+
+    // Backward-compatible fallback for old rows that only stored generic type.
+    if (!matchedDb) {
+      const typeBucket = dbByTypeBuckets.get(String(s.type || "").toLowerCase()) || [];
+      matchedDb = typeBucket.shift() || null;
+      if (typeBucket.length === 0) {
+        dbByTypeBuckets.delete(String(s.type || "").toLowerCase());
+      } else {
+        dbByTypeBuckets.set(String(s.type || "").toLowerCase(), typeBucket);
+      }
+    }
+
+    result.push({
+      ...s,
+      deviceId: matchedDb?.device_id ?? null,
+      deviceName: s.name || formatSwitchName(s.key),
+      isConnected: true,
+    });
+  });
+
+  // Add DB devices that are NOT in IoT with isConnected: false
+  dbDevices.forEach((dbDevice) => {
+    const dbKey = dbDevice.device_type || "";
+    const dbKeyLower = String(dbKey).toLowerCase();
+
+    // Skip if already in IoT
+    if (iotKeysMap.has(dbKeyLower)) {
+      return;
+    }
+
+    result.push({
+      key: dbKey,
+      name: formatSwitchName(dbKey),
+      deviceName: formatSwitchName(dbKey),
+      type: toSwitchType(dbKey),
+      status: dbDevice.device_status === "ON" ? "ON" : "OFF",
+      raw: dbDevice.device_status ? String(dbDevice.device_status).toLowerCase() : null,
+      isConnected: false,
+      deviceId: dbDevice.device_id,
+    });
+  });
+
+  return result;
+}
+
+async function getData({ roomId: rawRoomId } = {}) {
   if (!token) {
     await login();
   }
 
-  const deviceId = await getDeviceId();
-  const data = await getTelemetry(deviceId);
   const pool = await getPool();
-  const roomId = await resolveSyncRoomId(undefined, pool);
+  const roomId = await resolveSyncRoomId(rawRoomId, pool);
+  const deviceId = await getDeviceId();
+  const data = await getTelemetry(deviceId, roomId);
 
   await syncCoreIotToDb({ roomId });
 
+  const iotSwitches = extractSwitchStates(data, getAllSwitchDefs(roomId));
+  const dbDevices = await getDevicesFromDb(pool, roomId);
+  const mergedSwitches = mergeIotAndDbDevices(iotSwitches, dbDevices);
+
   return {
     ok: true,
+    roomId,
     deviceId,
     data,
     deviceStatus: resolveDeviceStatus(data),
-    switches: extractSwitchStates(data),
+    switches: mergedSwitches,
   };
 }
 
@@ -506,11 +674,10 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
     await login();
   }
 
-  const deviceId = await getDeviceId();
-  const data = await getTelemetry(deviceId);
-
   const pool = await getPool();
   const roomId = await resolveSyncRoomId(rawRoomId, pool);
+  const deviceId = await getDeviceId();
+  const data = await getTelemetry(deviceId, roomId);
   const transaction = new sql.Transaction(pool);
   let transactionStarted = false;
 
@@ -563,12 +730,13 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
       summary.sensorRowsInserted += 1;
     }
 
-    const switches = extractSwitchStates(data);
+    const switches = extractSwitchStates(data, getAllSwitchDefs(roomId));
     for (const item of switches) {
       const saveResult = await upsertDeviceAndInsertLog({
         transaction,
         roomId,
-        deviceType: item.type,
+          // Persist unique switch key to avoid collisions when multiple devices share a type.
+          deviceType: item.key,
         status: item.status === "ON" ? "ON" : "OFF",
       });
       summary.devicesSaved += 1;
@@ -625,4 +793,5 @@ module.exports = {
   getData,
   controlDevice,
   syncCoreIotToDb,
+  registerSwitch,
 };
