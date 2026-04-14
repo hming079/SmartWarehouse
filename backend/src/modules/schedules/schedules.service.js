@@ -58,6 +58,17 @@ async function listSchedules({ roomId, deviceId, active }) {
 }
 
 async function createSchedule(payload) {
+  const pool = await getPool();
+  const request = pool.request();
+  const {} = payload;
+
+  // Validate
+
+
+  // Insert
+  const result = await request.query(`
+    INSERT INTO 
+    `);
   return {
     id: null,
     ...payload,
