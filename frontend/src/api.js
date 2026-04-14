@@ -1,17 +1,22 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5001/api";
 
 async function request(url, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${url}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {}),
+      },
+      ...options,
+    });
+  } catch (networkError) {
+    throw new Error(networkError?.message || "Cannot connect to API server");
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || "Request failed");
+    throw new Error(error.message || error.error || "Request failed");
   }
 
   return response.json();
@@ -37,5 +42,27 @@ export const api = {
   updateDevice: (id, payload) => request(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteDevice: (id) => request(`/devices/${id}`, { method: "DELETE" }),
   toggleDevice: (id) => request(`/devices/${id}/toggle`, { method: "PATCH" }),
+
+  getDashboardOverview: () => request("/dashboard/overview"),
+  getDashboardTimeseries: ({ roomId, metric, range } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    if (metric) params.set("metric", metric);
+    if (range) params.set("range", range);
+    const query = params.toString();
+    return request(`/dashboard/timeseries${query ? `?${query}` : ""}`);
+  },
+  getDashboardDeviceStatus: ({ roomId } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    const query = params.toString();
+    return request(`/dashboard/device-status${query ? `?${query}` : ""}`);
+  },
+  getDashboardAlertsSummary: ({ range } = {}) => {
+    const params = new URLSearchParams();
+    if (range) params.set("range", range);
+    const query = params.toString();
+    return request(`/dashboard/alerts-summary${query ? `?${query}` : ""}`);
+  },
 };
 

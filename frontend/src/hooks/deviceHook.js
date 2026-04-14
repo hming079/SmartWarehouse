@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+const IS_BROWSER = typeof window !== "undefined";
 
 // Utility mappers
 const toUiStatus = (status) =>
@@ -18,60 +19,72 @@ const toUiType = (type, name) => {
 	return "lights";
 };
 
+const toSwitchDevice = (item) => {
+	const fallbackName = item.name || item.key || "Switch";
+
+	return {
+		id: `switch-${item.key}`,
+		name: fallbackName,
+		deviceName: item.deviceName || fallbackName,
+		deviceId: item.deviceId ?? null,
+		deviceKey: item.key || null,
+		status: toUiStatus(item.status),
+		type: toUiType(item.type, item.name || item.key),
+		isConnected: item.isConnected !== false,
+	};
+};
+
+const createTelemetryDevice = ({ id, label, value, status, unit, type }) => ({
+	id,
+	name: Number.isNaN(value) ? label : `${label} (${value.toFixed(1)}${unit})`,
+	deviceName: label,
+	deviceId: null,
+	deviceKey: type,
+	status,
+	type,
+	isConnected: true,
+});
+
 // Telemetry transformation
 const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 	const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
 	const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
 	const status = toUiStatus(deviceStatus);
-
-	const switchDevices = Array.isArray(switches)
-		? switches.map((item) => ({
-				id: `switch-${item.key}`,
-				name: item.name || item.key || "Switch",
-				deviceName: item.deviceName || item.name || item.key || "Switch",
-				deviceId: item.deviceId ?? null,
-				deviceKey: item.key || null,
-				status: toUiStatus(item.status),
-				type: toUiType(item.type, item.name || item.key),
-				isConnected: item.isConnected !== false,
-			}))
-		: [];
+	const switchDevices = Array.isArray(switches) ? switches.map(toSwitchDevice) : [];
 
 	if (switchDevices.length > 0) {
 		return switchDevices;
 	}
 
 	return [
-		{
+		createTelemetryDevice({
 			id: "telemetry-temperature",
-			name: Number.isNaN(tempValue) ? "Temperature" : `Temperature (${tempValue.toFixed(1)} C)`,
-			deviceName: "Temperature",
-			deviceId: null,
-			deviceKey: "temperature",
+			label: "Temperature",
+			value: tempValue,
 			status,
+			unit: " C",
 			type: "temperature",
-			isConnected: true,
-		},
-		{
+		}),
+		createTelemetryDevice({
 			id: "telemetry-humidity",
-			name: Number.isNaN(humValue) ? "Humidity" : `Humidity (${humValue.toFixed(1)}%)`,
-			deviceName: "Humidity",
-			deviceId: null,
-			deviceKey: "humidity",
+			label: "Humidity",
+			value: humValue,
 			status,
+			unit: "%",
 			type: "humidity",
-			isConnected: true,
-		},
+		}),
 	];
 };
 
 const API_PORT = process.env.REACT_APP_API_PORT || "5001";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
+const API_IOT_DATA_URL = `${API_BASE_URL}/api/iot/data`;
+const API_IOT_CONTROL_URL = `${API_BASE_URL}/api/iot/control`;
 const DEVICE_NAME_OVERRIDES_KEY = "smartwarehouse.device-name-overrides";
 const DEVICE_HIDDEN_IDS_KEY = "smartwarehouse.device-hidden-ids";
 
 const readStoredValue = (key, fallback) => {
-	if (typeof window === "undefined") {
+	if (!IS_BROWSER) {
 		return fallback;
 	}
 
@@ -81,6 +94,31 @@ const readStoredValue = (key, fallback) => {
 	} catch (_) {
 		return fallback;
 	}
+};
+
+const writeStoredValue = (key, value) => {
+	if (!IS_BROWSER) {
+		return;
+	}
+
+	window.localStorage.setItem(key, JSON.stringify(value));
+};
+
+const applyLocalChanges = (devices, nameOverrides, hiddenDeviceIds) => {
+	const hiddenSet = new Set(hiddenDeviceIds);
+
+	return devices
+		.map((device) => ({
+			...device,
+			name: nameOverrides[device.id] || device.name,
+		}))
+		.filter((device) => !hiddenSet.has(device.id));
+};
+
+const setDeviceStatusById = (setDeviceList, id, status) => {
+	setDeviceList((prev) =>
+		prev.map((device) => (device.id === id ? { ...device, status } : device)),
+	);
 };
 
 export function useDeviceData() {
@@ -100,38 +138,22 @@ export function useDeviceData() {
 	);
 
 	useEffect(() => {
-		if (typeof window === "undefined") {
-			return;
-		}
-
-		window.localStorage.setItem(DEVICE_NAME_OVERRIDES_KEY, JSON.stringify(nameOverrides));
+		writeStoredValue(DEVICE_NAME_OVERRIDES_KEY, nameOverrides);
 	}, [nameOverrides]);
 
 	useEffect(() => {
-		if (typeof window === "undefined") {
-			return;
-		}
-
-		window.localStorage.setItem(DEVICE_HIDDEN_IDS_KEY, JSON.stringify(hiddenDeviceIds));
+		writeStoredValue(DEVICE_HIDDEN_IDS_KEY, hiddenDeviceIds);
 	}, [hiddenDeviceIds]);
 
 	useEffect(() => {
 		let alive = true;
-
-		const applyLocalChanges = (devices) =>
-			devices
-				.map((device) => ({
-					...device,
-					name: nameOverrides[device.id] || device.name,
-				}))
-				.filter((device) => !hiddenDeviceIds.includes(device.id));
 
 		async function loadData() {
 			try {
 				setLoading(true);
 				setError("");
 
-				const url = new URL(`${API_BASE_URL}/api/iot/data`);
+				const url = new URL(API_IOT_DATA_URL);
 				if (roomIdParam) {
 					url.searchParams.append("roomId", roomIdParam);
 				}
@@ -145,7 +167,11 @@ export function useDeviceData() {
 				if (alive) {
 					setPayload(json);
 					setDeviceList(
-						applyLocalChanges(buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches)),
+						applyLocalChanges(
+							buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches),
+							nameOverrides,
+							hiddenDeviceIds,
+						),
 					);
 					setDevicesError("");
 				}
@@ -184,14 +210,12 @@ export function useDeviceData() {
 
 			// If device is not connected to IoT, only update local UI
 			if (!device.isConnected) {
-				setDeviceList((prev) =>
-					prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d)),
-				);
+				setDeviceStatusById(setDeviceList, id, newStatus);
 				return;
 			}
 
 			// For connected devices, send control to IoT server
-			const response = await fetch(`${API_BASE_URL}/api/iot/control`, {
+			const response = await fetch(API_IOT_CONTROL_URL, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ key, value: newValue }),
@@ -203,9 +227,7 @@ export function useDeviceData() {
 				return;
 			}
 
-			setDeviceList((prev) =>
-				prev.map((d) => (d.id === id ? { ...d, status: newStatus } : d)),
-			);
+			setDeviceStatusById(setDeviceList, id, newStatus);
 		} catch (err) {
 			setDevicesError(`Lỗi kết nối: ${err.message}`);
 		}
@@ -240,7 +262,7 @@ export function useDeviceData() {
 	};
 
 	const handleAddDevice = async () => {
-		if (typeof window === "undefined") return;
+		if (!IS_BROWSER) return;
 
 		// Input device type
 		const typeInput = window.prompt("Device type (fan, ac, lights, dryer...)", "fan");
@@ -290,6 +312,7 @@ export function useDeviceData() {
 						deviceKey: newSwitch.key,
 						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
 						status: "off",
+						isConnected: true,
 					},
 				];
 			});
