@@ -735,8 +735,8 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
       const saveResult = await upsertDeviceAndInsertLog({
         transaction,
         roomId,
-          // Persist unique switch key to avoid collisions when multiple devices share a type.
-          deviceType: item.key,
+        // Persist unique switch key to avoid collisions when multiple devices share a type.
+        deviceType: item.key,
         status: item.status === "ON" ? "ON" : "OFF",
       });
       summary.devicesSaved += 1;
@@ -764,6 +764,42 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
   }
 }
 
+function normalizeBooleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["true", "1", "on", "yes", "active", "enabled"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "off", "no", "inactive", "disabled"].includes(normalized)) {
+    return false;
+  }
+
+  throw createHttpError("Invalid boolean value", 400);
+}
+
+function toRpcMethod(key) {
+  const normalizedKey = String(key || "").trim().toLowerCase();
+  const map = {
+    fan_on: "setFan",
+    cooler_on: "setCooler",
+    dryer_on: "setDryer",
+  };
+
+  const method = map[normalizedKey];
+  if (!method) {
+    throw createHttpError(`Unsupported control key: ${key}`, 400);
+  }
+
+  return method;
+}
+
 async function controlDevice({ key, value }) {
   if (!key || value === undefined) {
     throw createHttpError("Missing key or value", 400);
@@ -773,19 +809,35 @@ async function controlDevice({ key, value }) {
     throw createHttpError("Missing TB_DEVICE_TOKEN in environment", 500);
   }
 
-  const url = `${BASE_URL}/api/v1/${TB_DEVICE_TOKEN}/telemetry`;
-  const payload = { [key]: value };
+  if (!token) {
+    await login();
+  }
 
-  const response = await axios.post(url, payload, {
-    headers: {
-      "Content-Type": "application/json",
+  const method = toRpcMethod(key);
+  const state = normalizeBooleanValue(value);
+  const deviceId = await getDeviceId();
+  const url = `${BASE_URL}/api/plugins/rpc/oneway/${deviceId}`;
+  const payload = {
+    method,
+    params: {
+      state,
     },
-  });
+  };
+
+  const response = await requestWithAutoRelogin(() =>
+    axios.post(url, payload, {
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+    }),
+  );
 
   return {
     ok: true,
-    message: `Control sent: ${key}=${value}`,
+    message: `RPC sent: ${method} -> ${state}`,
     data: response.data,
+    rpc: payload,
   };
 }
 
