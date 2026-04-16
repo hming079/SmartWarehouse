@@ -268,7 +268,16 @@ const Devices = () => {
                             : ""}
                         </td>
                         <td className="px-4 py-3 capitalize">{device.type}</td>
-                        <td className="px-4 py-3 uppercase">{device.status}</td>
+                        {/* <td className="px-4 py-3 uppercase">{device.status}</td> */}
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold uppercase ${
+                            device.status === 'on' 
+                              ? 'bg-green-200 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {device.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
                             <button

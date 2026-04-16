@@ -37,6 +37,22 @@ export const api = {
   createAutomationRule: (payload) => request("/automation", { method: "POST", body: JSON.stringify(payload) }),
   toggleAutomationRule: (id) => request(`/automation/${id}/toggle`, { method: "PATCH" }),
   deleteAutomationRule: (id) => request(`/automation/${id}`, { method: "DELETE" }),
+
+  getSchedules: ({ roomId, deviceId, active } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    if (deviceId) params.set("deviceId", String(deviceId));
+    if (active !== undefined && active !== null) {
+      params.set("active", String(Boolean(active)));
+    }
+    const query = params.toString();
+    return request(`/schedules${query ? `?${query}` : ""}`);
+  },
+  createSchedule: (payload) => request("/schedules", { method: "POST", body: JSON.stringify(payload) }),
+  updateSchedule: (id, payload) => request(`/schedules/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
+  toggleSchedule: (id) => request(`/schedules/${id}/toggle`, { method: "PATCH" }),
+  deleteSchedule: (id) => request(`/schedules/${id}`, { method: "DELETE" }),
+
   getDevices: (roomId) => request(`/devices?roomId=${roomId}`),
   createDevice: (payload) => request("/devices", { method: "POST", body: JSON.stringify(payload) }),
   updateDevice: (id, payload) => request(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),

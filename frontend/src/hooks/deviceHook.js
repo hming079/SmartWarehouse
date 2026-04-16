@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 const IS_BROWSER = typeof window !== "undefined";
+const PENDING_STATUS_TTL_MS = 5000;
 
 // Utility mappers
 const toUiStatus = (status) =>
@@ -121,6 +122,30 @@ const setDeviceStatusById = (setDeviceList, id, status) => {
 	);
 };
 
+const reconcilePendingStatuses = (devices, pendingStatusById) => {
+	const now = Date.now();
+	const nextPendingStatusById = {};
+
+	const reconciledDevices = devices.map((device) => {
+		const pending = pendingStatusById[device.id];
+		if (!pending || pending.expiresAt <= now) {
+			return device;
+		}
+
+		if (device.status === pending.status) {
+			return device;
+		}
+
+		nextPendingStatusById[device.id] = pending;
+		return { ...device, status: pending.status };
+	});
+
+	return {
+		devices: reconciledDevices,
+		pendingStatusById: nextPendingStatusById,
+	};
+};
+
 export function useDeviceData() {
 	const [searchParams] = useSearchParams();
 	const roomIdParam = searchParams.get("roomId");
@@ -136,6 +161,14 @@ export function useDeviceData() {
 	const [hiddenDeviceIds, setHiddenDeviceIds] = useState(() =>
 		readStoredValue(DEVICE_HIDDEN_IDS_KEY, []),
 	);
+	const [pendingStatusById, setPendingStatusById] = useState({});
+	const pendingStatusRef = useRef(pendingStatusById);
+	const lastControlAtRef = useRef(0);
+	const isFetchingRef = useRef(false);
+
+	useEffect(() => {
+		pendingStatusRef.current = pendingStatusById;
+	}, [pendingStatusById]);
 
 	useEffect(() => {
 		writeStoredValue(DEVICE_NAME_OVERRIDES_KEY, nameOverrides);
@@ -149,6 +182,13 @@ export function useDeviceData() {
 		let alive = true;
 
 		async function loadData() {
+			if (isFetchingRef.current) {
+				return;
+			}
+
+			isFetchingRef.current = true;
+			const requestStartedAt = Date.now();
+
 			try {
 				setLoading(true);
 				setError("");
@@ -165,14 +205,22 @@ export function useDeviceData() {
 
 				const json = await res.json();
 				if (alive) {
-					setPayload(json);
-					setDeviceList(
-						applyLocalChanges(
-							buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches),
-							nameOverrides,
-							hiddenDeviceIds,
-						),
+					if (requestStartedAt < lastControlAtRef.current) {
+						return;
+					}
+
+					const localDevices = applyLocalChanges(
+						buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches),
+						nameOverrides,
+						hiddenDeviceIds,
 					);
+					const reconciled = reconcilePendingStatuses(
+						localDevices,
+						pendingStatusRef.current,
+					);
+					setPayload(json);
+					setDeviceList(reconciled.devices);
+					setPendingStatusById(reconciled.pendingStatusById);
 					setDevicesError("");
 				}
 			} catch (err) {
@@ -181,6 +229,7 @@ export function useDeviceData() {
 					setDevicesError("Khong the lay danh sach device tu App Core IoT");
 				}
 			} finally {
+				isFetchingRef.current = false;
 				if (alive) {
 					setLoading(false);
 					setDevicesLoading(false);
@@ -205,6 +254,7 @@ export function useDeviceData() {
 			const newStatus = device.status === "on" ? "off" : "on";
 			const newValue = newStatus === "on" ? "1" : "0";
 			const key = id.startsWith("switch-") ? id.replace("switch-", "") : id;
+			lastControlAtRef.current = Date.now();
 
 			setDevicesError("");
 
@@ -227,6 +277,13 @@ export function useDeviceData() {
 				return;
 			}
 
+			setPendingStatusById((prev) => ({
+				...prev,
+				[id]: {
+					status: newStatus,
+					expiresAt: Date.now() + PENDING_STATUS_TTL_MS,
+				},
+			}));
 			setDeviceStatusById(setDeviceList, id, newStatus);
 		} catch (err) {
 			setDevicesError(`Lỗi kết nối: ${err.message}`);
@@ -258,6 +315,12 @@ export function useDeviceData() {
 		if (!confirmed) return;
 
 		setHiddenDeviceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+		setPendingStatusById((prev) => {
+			if (!prev[id]) return prev;
+			const next = { ...prev };
+			delete next[id];
+			return next;
+		});
 		setDeviceList((prev) => prev.filter((item) => item.id !== id));
 	};
 
