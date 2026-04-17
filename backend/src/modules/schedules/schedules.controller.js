@@ -1,5 +1,15 @@
 const schedulesService = require("./schedules.service");
 
+async function getScheduleDevices(req, res, next) {
+  try {
+    const roomId = req.query.roomId ? Number(req.query.roomId) : null;
+    const data = await schedulesService.listScheduleDevices({ roomId });
+    res.json({ ok: true, data: data.items, meta: data.filters });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getSchedules(req, res, next) {
   try {
     const roomId = req.query.roomId ? Number(req.query.roomId) : null;
@@ -59,6 +69,7 @@ async function patchToggleSchedule(req, res, next) {
 }
 
 module.exports = {
+  getScheduleDevices,
   getSchedules,
   postSchedule,
   patchSchedule,
