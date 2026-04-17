@@ -15,6 +15,7 @@ const initialForm = {
   start_time: "08:00",
   end_time: "18:00",
   days: ["MON", "TUE", "WED", "THU", "FRI"],
+  device_ids: [],
   action: "POWER_ON",
 };
 
@@ -32,11 +33,20 @@ function toTimeInput(value) {
   return normalized.length >= 5 ? normalized.slice(0, 5) : normalized;
 }
 
+function parseDeviceIds(value) {
+  if (!value) return [];
+  return String(value)
+    .split(",")
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isInteger(item) && item > 0);
+}
+
 const Schedules = () => {
   const [searchParams] = useSearchParams();
   const roomId = Number(searchParams.get("roomId")) || null;
 
   const [items, setItems] = useState([]);
+  const [deviceOptions, setDeviceOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -69,8 +79,20 @@ const Schedules = () => {
     }
   };
 
+  const loadDeviceOptions = async () => {
+    try {
+      const response = await api.getScheduleDevices({
+        roomId: roomId || undefined,
+      });
+      setDeviceOptions(response.data || []);
+    } catch (_) {
+      setDeviceOptions([]);
+    }
+  };
+
   useEffect(() => {
     loadSchedules();
+    loadDeviceOptions();
   }, [roomId, activeQuery]);
 
   const openCreateModal = () => {
@@ -87,6 +109,7 @@ const Schedules = () => {
       start_time: toTimeInput(item.start_time),
       end_time: toTimeInput(item.end_time),
       days: parseDays(item.days_of_week),
+      device_ids: parseDeviceIds(item.device_ids),
       action: item.action || "POWER_ON",
     });
     setFormError("");
@@ -120,8 +143,22 @@ const Schedules = () => {
     start_time: form.start_time,
     end_time: form.end_time,
     days_of_week: form.days.join(","),
+    device_ids: form.device_ids,
     action: form.action,
   });
+
+  const handleDeviceToggle = (deviceId) => {
+    setForm((prev) => {
+      const selected = Array.isArray(prev.device_ids) ? prev.device_ids : [];
+      const hasId = selected.includes(deviceId);
+      return {
+        ...prev,
+        device_ids: hasId
+          ? selected.filter((item) => item !== deviceId)
+          : [...selected, deviceId],
+      };
+    });
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -214,6 +251,7 @@ const Schedules = () => {
                   <th className="px-3 py-3 font-semibold">Name</th>
                   <th className="px-3 py-3 font-semibold">Time Range</th>
                   <th className="px-3 py-3 font-semibold">Days</th>
+                  <th className="px-3 py-3 font-semibold">Devices</th>
                   <th className="px-3 py-3 font-semibold">Action</th>
                   <th className="px-3 py-3 font-semibold">Status</th>
                   <th className="px-3 py-3 font-semibold">Operations</th>
@@ -227,6 +265,7 @@ const Schedules = () => {
                       {toTimeInput(item.start_time)} - {toTimeInput(item.end_time)}
                     </td>
                     <td className="px-3 py-3">{item.days_of_week || "-"}</td>
+                    <td className="px-3 py-3">{item.device_names || "-"}</td>
                     <td className="px-3 py-3">{item.action}</td>
                     <td className="px-3 py-3">
                       <span
@@ -351,6 +390,37 @@ const Schedules = () => {
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-[#2f2651]">Devices (optional)</p>
+            {deviceOptions.length === 0 ? (
+              <div className="rounded-xl bg-[#f5f1fb] px-3 py-2 text-sm text-[#5c4f80]">
+                No devices found for the selected room.
+              </div>
+            ) : (
+              <div className="grid max-h-48 grid-cols-1 gap-2 overflow-auto rounded-xl border border-[#e3dbf2] bg-[#fcfbff] p-3 md:grid-cols-2">
+                {deviceOptions.map((device) => {
+                  const id = Number(device.id);
+                  const selected = form.device_ids.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => handleDeviceToggle(id)}
+                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                        selected
+                          ? "border-[#6c4fd3] bg-[#efe7ff] text-[#2f2160]"
+                          : "border-[#e5def3] bg-white text-[#3d2f64] hover:bg-[#f8f5fe]"
+                      }`}
+                    >
+                      <span className="font-medium">{device.name}</span>
+                      <span className="text-xs uppercase">{selected ? "Selected" : "Select"}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">

@@ -52,8 +52,14 @@ export const api = {
   updateSchedule: (id, payload) => request(`/schedules/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   toggleSchedule: (id) => request(`/schedules/${id}/toggle`, { method: "PATCH" }),
   deleteSchedule: (id) => request(`/schedules/${id}`, { method: "DELETE" }),
+  getScheduleDevices: ({ roomId } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    const query = params.toString();
+    return request(`/schedules/devices${query ? `?${query}` : ""}`);
+  },
 
-  getDevices: (roomId) => request(`/devices?roomId=${roomId}`),
+  getDevices: (roomId) => request(`/devices${roomId ? `?roomId=${roomId}` : ""}`),
   createDevice: (payload) => request("/devices", { method: "POST", body: JSON.stringify(payload) }),
   updateDevice: (id, payload) => request(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteDevice: (id) => request(`/devices/${id}`, { method: "DELETE" }),
