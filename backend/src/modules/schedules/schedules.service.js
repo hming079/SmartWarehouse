@@ -181,6 +181,12 @@ async function getScheduleOrThrow(scheduleId) {
       CONVERT(varchar(8), sh.end_time, 108) AS end_time,
       sh.days_of_week,
       sh.action,
+      ISNULL(STUFF((
+        SELECT ',' + CAST(d.device_id AS varchar(12))
+        FROM dbo.Devices d
+        WHERE d.shedule_id = sh.shedule_id
+        FOR XML PATH(''), TYPE
+      ).value('.', 'nvarchar(max)'), 1, 1, ''), '') AS device_ids,
       CASE WHEN sh.action = 'POWER_OFF' THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS is_active
     FROM dbo.Shedules sh
     WHERE sh.shedule_id = @id
@@ -370,8 +376,9 @@ async function updateSchedule(scheduleId, payload) {
   const hasEndTime = payload.end_time !== undefined;
   const hasDays = payload.days_of_week !== undefined;
   const hasAction = payload.action !== undefined || payload.active !== undefined;
+  const hasDeviceIds = payload.device_ids !== undefined;
 
-  if (!hasName && !hasStartTime && !hasEndTime && !hasDays && !hasAction) {
+  if (!hasName && !hasStartTime && !hasEndTime && !hasDays && !hasAction && !hasDeviceIds) {
     throw createHttpError(400, "No fields to update");
   }
 
@@ -423,7 +430,7 @@ async function updateSchedule(scheduleId, payload) {
     end_time: nextEndTime,
     days_of_week: nextDays,
     action: nextAction,
-    device_ids: deviceIds ? deviceIds.join(",") : existing.device_ids || "",
+    device_ids: deviceIds ? deviceIds.join(",") : existing.device_ids,
     is_active: nextAction !== "POWER_OFF",
   };
 }

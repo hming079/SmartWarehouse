@@ -58,6 +58,18 @@ async function patchToggleDevice(req, res, next) {
   }
 }
 
+async function getDeviceLogs(req, res, next) {
+  try {
+    const roomId = req.query.roomId ? Number(req.query.roomId) : null;
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 20;
+    const data = await devicesService.getDeviceLogs({ roomId, page, pageSize });
+    res.json({ ok: true, data: data.items, meta: { page, pageSize, roomId } });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   getDevices,
   getDeviceById,
@@ -65,4 +77,5 @@ module.exports = {
   patchDevice,
   removeDevice,
   patchToggleDevice,
+  getDeviceLogs,
 };

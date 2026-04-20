@@ -27,6 +27,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
+  const shouldPreserveSelection = (path) => path === "/area";
 
   const handleNavigate = (path, useDeviceView = false) => {
     let fullPath = path;
@@ -43,14 +44,17 @@ const Sidebar = () => {
       }
     }
 
-    // Preserve query params (areaId, floorId, roomId) when navigating
-    const queryString = searchParams.toString();
-    fullPath = queryString ? `${fullPath}?${queryString}` : fullPath;
+    // Only Area page keeps selection context; other sidebar pages show global summary.
+    if (shouldPreserveSelection(path)) {
+      const queryString = searchParams.toString();
+      fullPath = queryString ? `${fullPath}?${queryString}` : fullPath;
+    }
+
     navigate(fullPath);
   };
 
   return (
-    <aside className="flex min-h-screen w-[200px] flex-col bg-gradient-to-b from-[#1a0b3b] to-[#2d0b5a] p-3 text-white lg:w-[210px]">
+    <aside className="sticky top-0 flex h-screen w-[200px] shrink-0 flex-col overflow-y-auto bg-gradient-to-b from-[#1a0b3b] to-[#2d0b5a] p-3 text-white lg:w-[210px]">
       <div className="mb-6 flex items-center gap-3 rounded-xl px-2 py-2">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-600 text-sm font-bold">
           SW
