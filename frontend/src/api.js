@@ -38,6 +38,21 @@ export const api = {
   toggleAutomationRule: (id) => request(`/automation/${id}/toggle`, { method: "PATCH" }),
   deleteAutomationRule: (id) => request(`/automation/${id}`, { method: "DELETE" }),
 
+  getAuditLogs: ({ page, pageSize, from, to, actor, action, roomId } = {}) => {
+    const params = new URLSearchParams();
+    if (page) params.set("page", String(page));
+    if (pageSize) params.set("pageSize", String(pageSize));
+    if (from) params.set("from", String(from));
+    if (to) params.set("to", String(to));
+    if (actor) params.set("actor", String(actor));
+    if (action) params.set("action", String(action));
+    if (roomId) params.set("roomId", String(roomId));
+    const query = params.toString();
+    return request(`/audit-logs${query ? `?${query}` : ""}`);
+  },
+  getAuditLogById: (id) => request(`/audit-logs/${id}`),
+  exportAuditLogs: (payload) => request("/audit-logs/export", { method: "POST", body: JSON.stringify(payload) }),
+
   getSchedules: ({ roomId, deviceId, active } = {}) => {
     const params = new URLSearchParams();
     if (roomId) params.set("roomId", String(roomId));
@@ -64,6 +79,14 @@ export const api = {
   updateDevice: (id, payload) => request(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteDevice: (id) => request(`/devices/${id}`, { method: "DELETE" }),
   toggleDevice: (id) => request(`/devices/${id}/toggle`, { method: "PATCH" }),
+  getDeviceLogs: ({ roomId, page, pageSize } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    if (page) params.set("page", String(page));
+    if (pageSize) params.set("pageSize", String(pageSize));
+    const query = params.toString();
+    return request(`/devices/logs/history${query ? `?${query}` : ""}`);
+  },
 
   getDashboardOverview: () => request("/dashboard/overview"),
   getDashboardTimeseries: ({ roomId, metric, range } = {}) => {

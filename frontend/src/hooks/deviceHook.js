@@ -146,9 +146,9 @@ const reconcilePendingStatuses = (devices, pendingStatusById) => {
 	};
 };
 
-export function useDeviceData() {
+export function useDeviceData({ roomIdOverride } = {}) {
 	const [searchParams] = useSearchParams();
-	const roomIdParam = searchParams.get("roomId");
+	const roomIdParam = roomIdOverride ?? searchParams.get("roomId");
 	const [deviceList, setDeviceList] = useState([]);
 	const [devicesLoading, setDevicesLoading] = useState(true);
 	const [devicesError, setDevicesError] = useState("");
@@ -162,6 +162,7 @@ export function useDeviceData() {
 		readStoredValue(DEVICE_HIDDEN_IDS_KEY, []),
 	);
 	const [pendingStatusById, setPendingStatusById] = useState({});
+	const [pendingControlIds, setPendingControlIds] = useState([]);
 	const pendingStatusRef = useRef(pendingStatusById);
 	const lastControlAtRef = useRef(0);
 	const isFetchingRef = useRef(false);
@@ -248,19 +249,35 @@ export function useDeviceData() {
 
 	const handleToggleDevice = async (id) => {
 		try {
-			const device = deviceList.find((d) => d.id === id);
+			const normalizedId = String(id ?? "");
+			if (!normalizedId) {
+				return;
+			}
+
+			if (pendingControlIds.some((item) => String(item) === normalizedId)) {
+				return;
+			}
+
+			const device = deviceList.find((d) => String(d.id) === normalizedId);
 			if (!device) return;
 
 			const newStatus = device.status === "on" ? "off" : "on";
 			const newValue = newStatus === "on" ? "1" : "0";
-			const key = id.startsWith("switch-") ? id.replace("switch-", "") : id;
+			const key =
+				String(device.deviceKey || "").trim() ||
+				(normalizedId.startsWith("switch-")
+					? normalizedId.replace("switch-", "")
+					: normalizedId);
 			lastControlAtRef.current = Date.now();
+			setPendingControlIds((prev) =>
+				prev.some((item) => String(item) === normalizedId) ? prev : [...prev, normalizedId],
+			);
 
 			setDevicesError("");
 
 			// If device is not connected to IoT, only update local UI
 			if (!device.isConnected) {
-				setDeviceStatusById(setDeviceList, id, newStatus);
+				setDeviceStatusById(setDeviceList, device.id, newStatus);
 				return;
 			}
 
@@ -273,20 +290,36 @@ export function useDeviceData() {
 
 			const result = await response.json();
 			if (!response.ok) {
+				if (response.status === 409) {
+					setPendingStatusById((prev) => ({
+						...prev,
+						[device.id]: {
+							status: newStatus,
+							expiresAt: Date.now() + PENDING_STATUS_TTL_MS,
+						},
+					}));
+					setDeviceStatusById(setDeviceList, device.id, newStatus);
+					setDevicesError("");
+					return;
+				}
+
 				setDevicesError(`Lỗi: ${result.error || "Không thể điều khiển thiết bị"}`);
 				return;
 			}
 
 			setPendingStatusById((prev) => ({
 				...prev,
-				[id]: {
+				[device.id]: {
 					status: newStatus,
 					expiresAt: Date.now() + PENDING_STATUS_TTL_MS,
 				},
 			}));
-			setDeviceStatusById(setDeviceList, id, newStatus);
+			setDeviceStatusById(setDeviceList, device.id, newStatus);
 		} catch (err) {
 			setDevicesError(`Lỗi kết nối: ${err.message}`);
+		} finally {
+			const normalizedId = String(id ?? "");
+			setPendingControlIds((prev) => prev.filter((item) => String(item) !== normalizedId));
 		}
 	};
 
@@ -388,6 +421,7 @@ export function useDeviceData() {
 		deviceList,
 		devicesLoading,
 		devicesError,
+		pendingControlIds,
 		loading,
 		error,
 		payload,

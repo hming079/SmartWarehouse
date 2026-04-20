@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const RoomList = ({ rooms, selectedFloor, onAdd, onDelete }) => {
+const RoomList = ({ rooms, selectedFloor, onAdd, onDelete, onSelect }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const disabled = !selectedFloor;
@@ -43,12 +43,18 @@ const RoomList = ({ rooms, selectedFloor, onAdd, onDelete }) => {
 
       <div className="space-y-2">
         {rooms.map((room) => (
-          <div key={room.room_id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
-            <div>
+          <div
+            key={room.room_id}
+            className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 transition hover:bg-purple-50"
+          >
+            <button onClick={() => onSelect?.(room)} className="flex-1 text-left">
               <p className="text-sm font-medium text-gray-800">{room.name}</p>
               {room.description ? <p className="text-xs text-gray-500">{room.description}</p> : null}
-            </div>
-            <button onClick={() => onDelete(room.room_id)} className="text-xs text-red-500 hover:text-red-700">
+            </button>
+            <button
+              onClick={() => onDelete(room.room_id)}
+              className="ml-3 text-xs text-red-500 hover:text-red-700"
+            >
               Delete
             </button>
           </div>

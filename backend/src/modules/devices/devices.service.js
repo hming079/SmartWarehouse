@@ -86,6 +86,47 @@ async function toggleDevice(deviceId) {
   };
 }
 
+async function getDeviceLogs({ roomId, page = 1, pageSize = 20 }) {
+  const pool = await getPool();
+  const request = pool.request();
+  const offset = (page - 1) * pageSize;
+
+  let whereClause = "";
+  if (roomId) {
+    request.input("roomId", sql.Int, Number(roomId));
+    whereClause = "WHERE d.room_id = @roomId";
+  }
+
+  const result = await request
+    .input("pageSize", sql.Int, pageSize)
+    .input("offset", sql.Int, offset)
+    .query(`
+    SELECT
+      dl.device_log_id AS id,
+      dl.device_id,
+      d.device_id AS deviceId,
+      d.device_type AS type,
+      d.room_id,
+      r.name AS room_name,
+      dl.device_status AS status,
+      dl.timestamp AS timestamp
+    FROM dbo.DevicesLog dl
+    JOIN dbo.Devices d ON dl.device_id = d.device_id
+    LEFT JOIN dbo.Rooms r ON d.room_id = r.room_id
+    ${whereClause}
+    ORDER BY dl.timestamp DESC
+    OFFSET @offset ROWS
+    FETCH NEXT @pageSize ROWS ONLY
+  `);
+
+  return {
+    items: result.recordset,
+    page,
+    pageSize,
+    roomId: roomId || null,
+  };
+}
+
 module.exports = {
   listDevices,
   getDeviceById,
@@ -93,4 +134,5 @@ module.exports = {
   updateDevice,
   deleteDevice,
   toggleDevice,
+  getDeviceLogs,
 };

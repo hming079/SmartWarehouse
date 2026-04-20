@@ -188,6 +188,19 @@ function normalizeRoomId(rawRoomId) {
   return roomId;
 }
 
+function getConfiguredIotRoomId() {
+  const value = Number(process.env.IOT_DEFAULT_ROOM_ID);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function isConfiguredIotRoom(roomId) {
+  const configuredRoomId = getConfiguredIotRoomId();
+  if (!configuredRoomId) {
+    return true;
+  }
+  return Number(roomId) === configuredRoomId;
+}
+
 async function resolveSyncRoomId(rawRoomId, pool) {
   if (rawRoomId !== undefined && rawRoomId !== null && rawRoomId !== "") {
     return normalizeRoomId(rawRoomId);
@@ -232,14 +245,24 @@ async function ensureDeviceTypeColumn(transaction) {
       ALTER TABLE dbo.Devices ADD device_type NVARCHAR(50) NULL;
     END;
 
-    IF NOT EXISTS (
+    IF EXISTS (
       SELECT 1
       FROM sys.indexes
       WHERE name = 'UX_Devices_Room_DeviceType'
         AND object_id = OBJECT_ID('dbo.Devices')
     )
     BEGIN
-      CREATE UNIQUE NONCLUSTERED INDEX UX_Devices_Room_DeviceType
+      DROP INDEX UX_Devices_Room_DeviceType ON dbo.Devices;
+    END;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM sys.indexes
+      WHERE name = 'IX_Devices_Room_DeviceType'
+        AND object_id = OBJECT_ID('dbo.Devices')
+    )
+    BEGIN
+      CREATE NONCLUSTERED INDEX IX_Devices_Room_DeviceType
       ON dbo.Devices (room_id, device_type)
       WHERE device_type IS NOT NULL;
     END;
@@ -649,7 +672,23 @@ async function getData({ roomId: rawRoomId } = {}) {
   }
 
   const pool = await getPool();
-  const roomId = await resolveSyncRoomId(rawRoomId, pool);
+  const roomId = normalizeRoomId(rawRoomId);
+
+  if (!isConfiguredIotRoom(roomId)) {
+    const dbDevices = await getDevicesFromDb(pool, roomId);
+    const mergedSwitches = mergeIotAndDbDevices([], dbDevices);
+
+    return {
+      ok: true,
+      roomId,
+      deviceId: null,
+      data: {},
+      deviceStatus: "OFF",
+      switches: mergedSwitches,
+      message: "Room is not connected to CoreIoT. Returning room-local DB devices only.",
+    };
+  }
+
   const deviceId = await getDeviceId();
   const data = await getTelemetry(deviceId, roomId);
 
@@ -675,7 +714,24 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
   }
 
   const pool = await getPool();
-  const roomId = await resolveSyncRoomId(rawRoomId, pool);
+  const roomId = normalizeRoomId(rawRoomId);
+
+  if (!isConfiguredIotRoom(roomId)) {
+    return {
+      ok: true,
+      skipped: true,
+      message: "Skip sync: selected room is not connected to CoreIoT.",
+      summary: {
+        roomId,
+        deviceId: null,
+        sensorsSaved: 0,
+        sensorRowsInserted: 0,
+        devicesSaved: 0,
+        deviceLogsInserted: 0,
+      },
+    };
+  }
+
   const deviceId = await getDeviceId();
   const data = await getTelemetry(deviceId, roomId);
   const transaction = new sql.Transaction(pool);
@@ -735,8 +791,8 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
       const saveResult = await upsertDeviceAndInsertLog({
         transaction,
         roomId,
-        // Persist unique switch key to avoid collisions when multiple devices share a type.
-        deviceType: item.key,
+        // Store only the simple device type (e.g., "fan", "lights")
+        deviceType: item.type,
         status: item.status === "ON" ? "ON" : "OFF",
       });
       summary.devicesSaved += 1;

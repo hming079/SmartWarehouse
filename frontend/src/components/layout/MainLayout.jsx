@@ -49,17 +49,17 @@ const MainLayout = ({ children }) => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#f5f6fa]">
+    <div className="flex h-screen overflow-hidden bg-[#f5f6fa]">
       <Sidebar />
-      <main className="flex-1 p-5 lg:p-6">
-        <Header
+      <main className="min-h-0 flex-1 overflow-y-auto p-5 lg:p-6">
+        {/* <Header
           location={summary.location}
           user={summary.user}
           areaId={areaId}
           floorId={floorId}
           roomId={roomId}
           onLocationChange={handleLocationChange}
-        />
+        /> */}
         <PageContainer>{children}</PageContainer>
       </main>
     </div>
