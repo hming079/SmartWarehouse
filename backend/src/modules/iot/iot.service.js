@@ -189,7 +189,7 @@ function normalizeRoomId(rawRoomId) {
 }
 
 function getConfiguredIotRoomId() {
-  const value = Number(process.env.IOT_DEFAULT_ROOM_ID);
+  const value = Number(process.env.IOT_DEFAULT_ROOM_ID || 101);
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 

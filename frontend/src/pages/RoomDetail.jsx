@@ -378,39 +378,6 @@ const RoomDetail = () => {
       </div>
 
       <div className="mt-5 space-y-4 rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
-        {/* <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white px-4 py-3 shadow-sm">
-          <div>
-            <h2 className="text-lg font-bold text-[#1d1645]">Dashboard Snapshot</h2>
-            <p className="text-xs text-gray-500">Room-focused summary similar to Dashboard page</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleOpenDashboard}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#1d1645] transition hover:bg-gray-50"
-          >
-            Open Dashboard
-          </button>
-        </div> */}
-
-        {/* <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl bg-[#ece6f8] p-4">
-            <p className="text-xs uppercase tracking-wide text-[#5a4aa2]">Active Devices</p>
-            <p className="mt-2 text-2xl font-bold text-[#1d1645]">{activeCount}</p>
-          </div>
-          <div className="rounded-xl bg-[#ece6f8] p-4">
-            <p className="text-xs uppercase tracking-wide text-[#5a4aa2]">Total Devices</p>
-            <p className="mt-2 text-2xl font-bold text-[#1d1645]">{totalCount}</p>
-          </div>
-          <div className="rounded-xl bg-[#ece6f8] p-4">
-            <p className="text-xs uppercase tracking-wide text-[#5a4aa2]">Active Rules</p>
-            <p className="mt-2 text-2xl font-bold text-[#1d1645]">{activeAutomationCount}</p>
-          </div>
-          <div className="rounded-xl bg-[#ece6f8] p-4">
-            <p className="text-xs uppercase tracking-wide text-[#5a4aa2]">Device Logs</p>
-            <p className="mt-2 text-2xl font-bold text-[#1d1645]">{auditItems.length}</p>
-          </div>
-        </div> */}
-
         <div className="grid grid-cols-1 gap-4">
           <div className="space-y-3 rounded-xl bg-[#f7f5fc] p-4 xl:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -443,65 +410,7 @@ const RoomDetail = () => {
 
             {timeseriesError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{timeseriesError}</p> : null}
             {timeseriesLoading ? <p className="text-xs text-gray-500">Loading graph...</p> : <TimeseriesChart points={timeseries} metric={metric} />}
-
-            {/* <h3 className="text-sm font-semibold uppercase tracking-wide text-[#5a4aa2]">Latest Readings</h3>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <div className="rounded-lg bg-white p-3">
-                <p className="text-xs text-gray-600">Temperature</p>
-                <p className="mt-1 text-lg font-semibold text-[#1d1645]">{formatValue(temperatureValue, "°C")}</p>
-              </div>
-              <div className="rounded-lg bg-white p-3">
-                <p className="text-xs text-gray-600">Humidity</p>
-                <p className="mt-1 text-lg font-semibold text-[#1d1645]">{formatValue(humidityValue, "%")}</p>
-              </div>
-              <div className="rounded-lg bg-white p-3">
-                <p className="text-xs text-gray-600">Last Device Log</p>
-                <p className="mt-1 text-sm font-semibold text-[#1d1645]">{latestUpdateTime ? formatDateTime(latestUpdateTime) : "--"}</p>
-              </div>
-            </div> */}
           </div>
-
-          {/* <div className="rounded-xl bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-[#5a4aa2]">Device Status</h3>
-              <p className="text-xs text-gray-500">{`Online ${activeCount} / ${totalCount}`}</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-left text-gray-500">
-                    <th className="px-1 py-2">Device</th>
-                    <th className="px-1 py-2">Status</th>
-                    <th className="px-1 py-2">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {controlDevices.slice(0, 6).map((item) => (
-                    <tr key={item.id} className="border-b border-gray-50 last:border-b-0">
-                      <td className="px-1 py-2 text-gray-700">{item.type || "--"} #{item.deviceId || item.id}</td>
-                      <td className="px-1 py-2">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${
-                            String(item.status).toUpperCase() === "ON"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {String(item.status || "OFF").toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-1 py-2 text-gray-500">{formatDateTime(item.last_update_time)}</td>
-                    </tr>
-                  ))}
-                  {controlDevices.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-1 py-2 text-gray-400">No device data</td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div> 
-          </div>*/}
         </div>
       </div>
 
