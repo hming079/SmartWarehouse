@@ -1,5 +1,11 @@
 const { sql, getPool } = require("../../../db");
 
+function createHttpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 async function listDevices({ roomId }) {
   const pool = await getPool();
   const request = pool.request();
@@ -14,7 +20,7 @@ async function listDevices({ roomId }) {
     SELECT
       d.device_id AS id,
       d.room_id,
-      d.device_name AS name,
+      COALESCE(NULLIF(LTRIM(RTRIM(d.device_type)), ''), CONCAT('Device ', d.device_id)) AS name,
       d.device_type AS type,
       d.device_status AS status,
       d.last_update_time,
@@ -38,7 +44,7 @@ async function getDeviceById(deviceId) {
     SELECT TOP 1
       d.device_id AS id,
       d.room_id,
-      d.device_name AS name,
+      COALESCE(NULLIF(LTRIM(RTRIM(d.device_type)), ''), CONCAT('Device ', d.device_id)) AS name,
       d.device_type AS type,
       d.device_status AS status,
       d.last_update_time,
@@ -73,16 +79,83 @@ async function updateDevice(deviceId, payload) {
 }
 
 async function deleteDevice(deviceId) {
+  const id = Number(deviceId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw createHttpError(400, "Invalid device id");
+  }
+
+  const pool = await getPool();
+  const request = pool.request().input("id", sql.Int, id);
+
+  const existing = await request.query(`
+    SELECT TOP 1 device_id
+    FROM dbo.Devices
+    WHERE device_id = @id
+  `);
+
+  if (!existing.recordset.length) {
+    throw createHttpError(404, `Device ${id} not found`);
+  }
+
+  await request.query(`
+    DELETE FROM dbo.DevicesLog
+    WHERE device_id = @id
+  `);
+
+  await request.query(`
+    DELETE FROM dbo.Devices
+    WHERE device_id = @id
+  `);
+
   return {
-    id: Number(deviceId),
+    id,
     deleted: true,
   };
 }
 
 async function toggleDevice(deviceId) {
+  const id = Number(deviceId);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw createHttpError(400, "Invalid device id");
+  }
+
+  const pool = await getPool();
+  const result = await pool.request().input("id", sql.Int, id).query(`
+    DECLARE @nextStatus NVARCHAR(5);
+
+    SELECT TOP 1 @nextStatus = CASE
+      WHEN UPPER(ISNULL(device_status, 'OFF')) = 'ON' THEN 'OFF'
+      ELSE 'ON'
+    END
+    FROM dbo.Devices
+    WHERE device_id = @id;
+
+    IF @nextStatus IS NULL
+    BEGIN
+      SELECT CAST(0 AS BIT) AS updated, NULL AS status;
+      RETURN;
+    END
+
+    UPDATE dbo.Devices
+    SET device_status = @nextStatus,
+        last_update_time = SYSUTCDATETIME()
+    WHERE device_id = @id;
+
+    INSERT INTO dbo.DevicesLog (device_id, device_status)
+    VALUES (@id, @nextStatus);
+
+    SELECT CAST(1 AS BIT) AS updated, @nextStatus AS status;
+  `);
+
+  const row = result.recordset[0] || {};
+  if (!row.updated) {
+    throw createHttpError(404, `Device ${id} not found`);
+  }
+
   return {
-    id: Number(deviceId),
+    id,
     toggled: true,
+    status: row.status,
   };
 }
 

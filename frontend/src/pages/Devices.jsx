@@ -11,6 +11,13 @@ const DEVICE_VIEW_TABS = [
   { key: "list", label: "List form" },
 ];
 
+const DEVICE_TYPE_OPTIONS = [
+  { value: "fan", label: "Fan" },
+  { value: "dryer", label: "Dryer" },
+  { value: "ac", label: "AC / Cooling" },
+  { value: "lights", label: "Lights" },
+];
+
 const DEVICE_VIEW_PREF_KEY = "smartwarehouse.device-view-preference";
 const DEVICE_SORT_PREF_KEY = "smartwarehouse.device-sort-preference";
 
@@ -73,6 +80,7 @@ const Devices = () => {
     handleDeleteDevice,
     handleAddDevice,
   } = useDeviceData();
+  const [selectedDeviceType, setSelectedDeviceType] = useState("fan");
 
   // Initialize sort config from localStorage
   const [sortConfig, setSortConfig] = useState(() => {
@@ -183,13 +191,24 @@ const Devices = () => {
         ))}
       </div>
       {/* Add device button */}
-      <div className="mb-4 flex justify-start">
+      <div className="mb-4 flex items-center justify-start gap-2">
+        <select
+          value={selectedDeviceType}
+          onChange={(event) => setSelectedDeviceType(event.target.value)}
+          className="rounded-xl border border-[#cfc3ef] bg-white px-3 py-2 text-sm text-[#1d1645]"
+        >
+          {DEVICE_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <button
-          onClick={handleAddDevice}
+          onClick={() => handleAddDevice(selectedDeviceType)}
           className="rounded-xl bg-[#6c4fd3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5d41c2] focus:outline-none focus:ring-2 focus:ring-[#6c4fd3] focus:ring-offset-2"
         >
           + Add Device
-        </button> 
+        </button>
       </div>
       {/* Content */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

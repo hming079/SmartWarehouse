@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 const IS_BROWSER = typeof window !== "undefined";
-const PENDING_STATUS_TTL_MS = 5000;
 
 // Utility mappers
 const toUiStatus = (status) =>
@@ -79,8 +78,10 @@ const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
 
 const API_PORT = process.env.REACT_APP_API_PORT || "5001";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
-const API_IOT_DATA_URL = `${API_BASE_URL}/api/iot/data`;
 const API_IOT_CONTROL_URL = `${API_BASE_URL}/api/iot/control`;
+const API_IOT_WS_URL =
+	process.env.REACT_APP_IOT_WS_URL ||
+	`${API_BASE_URL.replace(/^http/i, "ws")}/ws/iot`;
 const DEVICE_NAME_OVERRIDES_KEY = "smartwarehouse.device-name-overrides";
 const DEVICE_HIDDEN_IDS_KEY = "smartwarehouse.device-hidden-ids";
 
@@ -116,39 +117,25 @@ const applyLocalChanges = (devices, nameOverrides, hiddenDeviceIds) => {
 		.filter((device) => !hiddenSet.has(device.id));
 };
 
-const setDeviceStatusById = (setDeviceList, id, status) => {
-	setDeviceList((prev) =>
-		prev.map((device) => (device.id === id ? { ...device, status } : device)),
+
+const parseSocketMessage = (raw) => {
+	try {
+		return JSON.parse(raw);
+	} catch (_) {
+		return null;
+	}
+};
+
+const mapPayloadToDevices = ({ payload, nameOverrides, hiddenDeviceIds }) =>
+	applyLocalChanges(
+		buildTelemetrySensors(payload?.data, payload?.deviceStatus, payload?.switches),
+		nameOverrides,
+		hiddenDeviceIds,
 	);
-};
 
-const reconcilePendingStatuses = (devices, pendingStatusById) => {
-	const now = Date.now();
-	const nextPendingStatusById = {};
-
-	const reconciledDevices = devices.map((device) => {
-		const pending = pendingStatusById[device.id];
-		if (!pending || pending.expiresAt <= now) {
-			return device;
-		}
-
-		if (device.status === pending.status) {
-			return device;
-		}
-
-		nextPendingStatusById[device.id] = pending;
-		return { ...device, status: pending.status };
-	});
-
-	return {
-		devices: reconciledDevices,
-		pendingStatusById: nextPendingStatusById,
-	};
-};
-
-export function useDeviceData({ roomIdOverride } = {}) {
+export function useDeviceData() {
 	const [searchParams] = useSearchParams();
-	const roomIdParam = roomIdOverride ?? searchParams.get("roomId");
+	const roomIdParam = searchParams.get("roomId");
 	const [deviceList, setDeviceList] = useState([]);
 	const [devicesLoading, setDevicesLoading] = useState(true);
 	const [devicesError, setDevicesError] = useState("");
@@ -161,15 +148,17 @@ export function useDeviceData({ roomIdOverride } = {}) {
 	const [hiddenDeviceIds, setHiddenDeviceIds] = useState(() =>
 		readStoredValue(DEVICE_HIDDEN_IDS_KEY, []),
 	);
-	const [pendingStatusById, setPendingStatusById] = useState({});
-	const [pendingControlIds, setPendingControlIds] = useState([]);
-	const pendingStatusRef = useRef(pendingStatusById);
-	const lastControlAtRef = useRef(0);
-	const isFetchingRef = useRef(false);
+	const nameOverridesRef = useRef(nameOverrides);
+	const hiddenDeviceIdsRef = useRef(hiddenDeviceIds);
+	const toggleInProgressRef = useRef(new Set()); // Track devices currently being toggled
 
 	useEffect(() => {
-		pendingStatusRef.current = pendingStatusById;
-	}, [pendingStatusById]);
+		nameOverridesRef.current = nameOverrides;
+	}, [nameOverrides]);
+
+	useEffect(() => {
+		hiddenDeviceIdsRef.current = hiddenDeviceIds;
+	}, [hiddenDeviceIds]);
 
 	useEffect(() => {
 		writeStoredValue(DEVICE_NAME_OVERRIDES_KEY, nameOverrides);
@@ -180,104 +169,139 @@ export function useDeviceData({ roomIdOverride } = {}) {
 	}, [hiddenDeviceIds]);
 
 	useEffect(() => {
-		let alive = true;
+		if (!IS_BROWSER) {
+			return undefined;
+		}
 
-		async function loadData() {
-			if (isFetchingRef.current) {
-				return;
+		let closed = false;
+		let socket = null;
+		let reconnectTimer = null;
+
+		const connect = () => {
+			setLoading(true);
+			setDevicesLoading(true);
+			setError("");
+
+			const url = new URL(API_IOT_WS_URL);
+			if (roomIdParam) {
+				url.searchParams.set("roomId", roomIdParam);
 			}
 
-			isFetchingRef.current = true;
-			const requestStartedAt = Date.now();
+			socket = new window.WebSocket(url.toString());
 
-			try {
-				setLoading(true);
-				setError("");
-
-				const url = new URL(API_IOT_DATA_URL);
-				if (roomIdParam) {
-					url.searchParams.append("roomId", roomIdParam);
+			socket.onmessage = (event) => {
+				const parsed = parseSocketMessage(event.data);
+				if (!parsed) {
+					return;
 				}
 
-				const res = await fetch(url.toString());
-				if (!res.ok) {
-					throw new Error("Request failed with status " + res.status);
-				}
-
-				const json = await res.json();
-				if (alive) {
-					if (requestStartedAt < lastControlAtRef.current) {
-						return;
-					}
-
-					const localDevices = applyLocalChanges(
-						buildTelemetrySensors(json?.data, json?.deviceStatus, json?.switches),
-						nameOverrides,
-						hiddenDeviceIds,
-					);
-					const reconciled = reconcilePendingStatuses(
-						localDevices,
-						pendingStatusRef.current,
-					);
-					setPayload(json);
-					setDeviceList(reconciled.devices);
-					setPendingStatusById(reconciled.pendingStatusById);
-					setDevicesError("");
-				}
-			} catch (err) {
-				if (alive) {
-					setError(err.message || "Failed to fetch data");
+				if (parsed.type === "iot:error") {
+					setError(parsed.error || "IoT stream error");
 					setDevicesError("Khong the lay danh sach device tu App Core IoT");
+					setLoading(false);
+					setDevicesLoading(false);
+					return;
 				}
-			} finally {
-				isFetchingRef.current = false;
-				if (alive) {
+
+				if (parsed.type === "iot:data" && parsed.payload) {
+					const nextPayload = parsed.payload;
+					
+					// Log device state changes for debugging
+					if (payload?.switches?.length > 0 && nextPayload?.switches?.length > 0) {
+						const oldSwitches = new Map(payload.switches.map(s => [s.key, s.status]));
+						const newSwitches = new Map(nextPayload.switches.map(s => [s.key, s.status]));
+						
+						newSwitches.forEach((newStatus, key) => {
+							const oldStatus = oldSwitches.get(key);
+							if (oldStatus && oldStatus !== newStatus) {
+								console.log("Device state changed:", { key, oldStatus, newStatus });
+							}
+						});
+					}
+					
+					const nextDevices = mapPayloadToDevices({
+						payload: nextPayload,
+						nameOverrides: nameOverridesRef.current,
+						hiddenDeviceIds: hiddenDeviceIdsRef.current,
+					});
+
+					setPayload(nextPayload);
+					setDeviceList(nextDevices);
+					setDevicesError("");
+					setError("");
 					setLoading(false);
 					setDevicesLoading(false);
 				}
-			}
-		}
+			};
 
-		loadData();
-		const timer = setInterval(loadData, 5000);
+			socket.onerror = () => {
+				setError("WebSocket connection error");
+				setDevicesError("Khong the lay danh sach device tu App Core IoT");
+				setLoading(false);
+				setDevicesLoading(false);
+			};
+
+			socket.onclose = () => {
+				if (closed) {
+					return;
+				}
+
+				reconnectTimer = window.setTimeout(connect, 3000);
+			};
+		};
+
+		connect();
 
 		return () => {
-			alive = false;
-			clearInterval(timer);
+			closed = true;
+			if (reconnectTimer) {
+				window.clearTimeout(reconnectTimer);
+			}
+			if (socket && socket.readyState < 2) {
+				socket.close();
+			}
 		};
-	}, [hiddenDeviceIds, nameOverrides, roomIdParam]);
+	}, [roomIdParam]);
+
+	useEffect(() => {
+		if (!payload) {
+			return;
+		}
+
+		const nextDevices = mapPayloadToDevices({
+			payload,
+			nameOverrides,
+			hiddenDeviceIds,
+		});
+		setDeviceList(nextDevices);
+	}, [hiddenDeviceIds, nameOverrides, payload]);
 
 	const handleToggleDevice = async (id) => {
+		// Prevent duplicate toggle requests for same device
+		if (toggleInProgressRef.current.has(id)) {
+			console.warn("Toggle already in progress for device:", id);
+			return;
+		}
+
 		try {
-			const normalizedId = String(id ?? "");
-			if (!normalizedId) {
-				return;
-			}
-
-			if (pendingControlIds.some((item) => String(item) === normalizedId)) {
-				return;
-			}
-
-			const device = deviceList.find((d) => String(d.id) === normalizedId);
+			const device = deviceList.find((d) => d.id === id);
 			if (!device) return;
 
-			const newStatus = device.status === "on" ? "off" : "on";
+			const oldStatus = device.status;
+			const newStatus = oldStatus === "on" ? "off" : "on";
 			const newValue = newStatus === "on" ? "1" : "0";
-			const key =
-				String(device.deviceKey || "").trim() ||
-				(normalizedId.startsWith("switch-")
-					? normalizedId.replace("switch-", "")
-					: normalizedId);
-			lastControlAtRef.current = Date.now();
-			setPendingControlIds((prev) =>
-				prev.some((item) => String(item) === normalizedId) ? prev : [...prev, normalizedId],
-			);
+			const key = id.startsWith("switch-") ? id.replace("switch-", "") : id;
 
+			console.log("Toggling device:", { id, key, oldStatus, newStatus });
 			setDevicesError("");
+
+			// Mark toggle as in-progress
+			toggleInProgressRef.current.add(id);
 
 			// If device is not connected to IoT, only update local UI
 			if (!device.isConnected) {
-				setDeviceStatusById(setDeviceList, device.id, newStatus);
+				setDevicesError("Thiết bị chưa kết nối IoT, trạng thái sẽ cập nhật khi có dữ liệu từ server.");
+				toggleInProgressRef.current.delete(id);
 				return;
 			}
 
@@ -289,37 +313,27 @@ export function useDeviceData({ roomIdOverride } = {}) {
 			});
 
 			const result = await response.json();
+			
 			if (!response.ok) {
-				if (response.status === 409) {
-					setPendingStatusById((prev) => ({
-						...prev,
-						[device.id]: {
-							status: newStatus,
-							expiresAt: Date.now() + PENDING_STATUS_TTL_MS,
-						},
-					}));
-					setDeviceStatusById(setDeviceList, device.id, newStatus);
-					setDevicesError("");
-					return;
-				}
-
-				setDevicesError(`Lỗi: ${result.error || "Không thể điều khiển thiết bị"}`);
+				const errorMsg = result?.error || result?.message || "Không thể điều khiển thiết bị";
+				console.error("Control device failed:", { id, key, status: response.status, error: errorMsg });
+				setDevicesError(`Lỗi: ${errorMsg}`);
+				toggleInProgressRef.current.delete(id);
 				return;
 			}
 
-			setPendingStatusById((prev) => ({
-				...prev,
-				[device.id]: {
-					status: newStatus,
-					expiresAt: Date.now() + PENDING_STATUS_TTL_MS,
-				},
-			}));
-			setDeviceStatusById(setDeviceList, device.id, newStatus);
+			console.log("Control command sent successfully:", { id, key, value: newValue, response: result });
+
+			// Do not update UI optimistically. UI state must follow server telemetry only.
+
+			// Mark as no longer in progress after a small delay
+			setTimeout(() => {
+				toggleInProgressRef.current.delete(id);
+			}, 500);
 		} catch (err) {
+			console.error("Toggle device error:", { id, error: err.message });
 			setDevicesError(`Lỗi kết nối: ${err.message}`);
-		} finally {
-			const normalizedId = String(id ?? "");
-			setPendingControlIds((prev) => prev.filter((item) => String(item) !== normalizedId));
+			toggleInProgressRef.current.delete(id);
 		}
 	};
 
@@ -348,12 +362,6 @@ export function useDeviceData({ roomIdOverride } = {}) {
 		if (!confirmed) return;
 
 		setHiddenDeviceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-		setPendingStatusById((prev) => {
-			if (!prev[id]) return prev;
-			const next = { ...prev };
-			delete next[id];
-			return next;
-		});
 		setDeviceList((prev) => prev.filter((item) => item.id !== id));
 	};
 
@@ -421,7 +429,6 @@ export function useDeviceData({ roomIdOverride } = {}) {
 		deviceList,
 		devicesLoading,
 		devicesError,
-		pendingControlIds,
 		loading,
 		error,
 		payload,

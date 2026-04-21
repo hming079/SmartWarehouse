@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { Bot, CalendarClock, ChevronLeft, ClipboardList, Droplets, Power, RefreshCw, Thermometer, Trash2, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useDeviceData } from "../hooks/deviceHook";
+import { useDeviceData } from "../hooks/newdeviceHook";
 import { api } from "../api";
 import {
   useRoomDetail,
@@ -26,6 +26,13 @@ const RANGE_OPTIONS = [
 const METRIC_OPTIONS = [
   { value: "temperature", label: "Temperature" },
   { value: "humidity", label: "Humidity" },
+];
+
+const DEVICE_TYPE_OPTIONS = [
+  { value: "fan", label: "Fan" },
+  { value: "dryer", label: "Dryer" },
+  { value: "ac", label: "AC / Cooling" },
+  { value: "lights", label: "Lights" },
 ];
 
 function formatTimestamp(value) {
@@ -169,6 +176,7 @@ const RoomDetail = () => {
   const selectedFloorId = searchParams.get("floorId") || "";
   const [metric, setMetric] = useState("temperature");
   const [range, setRange] = useState("24h");
+  const [selectedDeviceType, setSelectedDeviceType] = useState("fan");
   const [timeseries, setTimeseries] = useState([]);
   const [timeseriesLoading, setTimeseriesLoading] = useState(false);
   const [timeseriesError, setTimeseriesError] = useState("");
@@ -450,20 +458,33 @@ const RoomDetail = () => {
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-xs uppercase tracking-wider text-[#7f96c0]">Thiet bi dieu khien ({controlDevices.length})</p>
-            <button
-              type="button"
-              onClick={handleAddDevice}
-              className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-            >
-              + Add Device
-            </button>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedDeviceType}
+                onChange={(event) => setSelectedDeviceType(event.target.value)}
+                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+              >
+                {DEVICE_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => handleAddDevice(selectedDeviceType)}
+                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+              >
+                + Add Device
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {controlDevices.length === 0 && <p className="text-sm text-[#8aa3ce]">Chua co thiet bi dieu khien.</p>}
             {controlDevices.map((device) => (
               <div key={device.id} className="flex items-center justify-between rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-2.5">
                 <div className="min-w-0 pr-2">
-                  <p className="truncate text-sm font-medium text-white">{device.deviceName || device.name + device.deviceId}</p>
+                  <p className="truncate text-sm font-medium text-white">{device.name + "_" + device.deviceId}</p>
                   <p className="text-xs text-[#90a8d4]">{getStatusText(device.status)}</p>
                 </div>
                 <div className="flex items-center gap-2">

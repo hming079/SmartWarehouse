@@ -21,7 +21,11 @@ function resolveError(err) {
 
 async function getData(req, res) {
   try {
-    const roomId = req?.query?.roomId ?? req?.body?.roomId ?? req?.body?.room_id;
+    const roomId =
+      req?.params?.roomId ??
+      req?.query?.roomId ??
+      req?.body?.roomId ??
+      req?.body?.room_id;
     const debug = toBooleanFlag(req?.query?.debug ?? req?.body?.debug);
     const result = await iotService.getData({ roomId, debug });
     res.json(result);
@@ -61,7 +65,7 @@ async function controlDevice(req, res) {
 
 async function syncCoreIotToDb(req, res) {
   try {
-    const roomId = req?.body?.roomId ?? req?.query?.roomId;
+    const roomId = req?.params?.roomId ?? req?.body?.roomId ?? req?.query?.roomId;
     const result = await iotService.syncCoreIotToDb({ roomId });
     res.json(result);
   } catch (err) {

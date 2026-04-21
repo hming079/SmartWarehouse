@@ -27,6 +27,8 @@ const SWITCH_LABELS = {
   dryer_on: "Dryer",
 };
 
+const ALLOWED_SWITCH_TYPES = new Set(["fan", "dryer", "ac", "lights"]);
+
 let token = "";
 const customSwitchDefs = [];
 
@@ -48,18 +50,29 @@ function sanitizeSwitchKey(rawKey) {
 function normalizeSwitchType(rawType, key) {
   const resolved = String(rawType || key || "").trim().toLowerCase();
   if (!resolved) {
-    return "switch";
+    throw createHttpError("Missing switch type", 400);
   }
-  return toSwitchType(resolved);
+
+  const normalized = toSwitchType(resolved);
+  if (!ALLOWED_SWITCH_TYPES.has(normalized)) {
+    throw createHttpError(
+      `Unsupported switch type '${rawType || key}'. Allowed types: fan, dryer, ac, lights`,
+      400,
+    );
+  }
+
+  return normalized;
 }
 
 function getAllSwitchDefs(roomId) {
   const normalizedRoomId = Number(roomId);
+  const includeDefaults =
+    !Number.isInteger(normalizedRoomId) || isConfiguredIotRoom(normalizedRoomId);
   const roomCustomDefs = Number.isInteger(normalizedRoomId)
     ? customSwitchDefs.filter((item) => item.roomId === normalizedRoomId)
     : customSwitchDefs;
 
-  return [...DEFAULT_SWITCH_DEFS, ...roomCustomDefs];
+  return [...(includeDefaults ? DEFAULT_SWITCH_DEFS : []), ...roomCustomDefs];
 }
 
 function buildTelemetryKeys(roomId) {
@@ -374,9 +387,14 @@ async function upsertDeviceAndInsertLog({
   deviceType,
   status,
 }) {
+  const normalizedDeviceType = String(deviceType || "").trim().toLowerCase();
+  if (!normalizedDeviceType) {
+    throw createHttpError("Missing device type", 400);
+  }
+
   const result = await new sql.Request(transaction)
     .input("roomId", sql.Int, roomId)
-    .input("deviceType", sql.NVarChar(50), deviceType)
+    .input("deviceType", sql.NVarChar(50), normalizedDeviceType)
     .input("status", sql.NVarChar(5), status).query(`
       DECLARE @deviceId INT;
       DECLARE @prevStatus NVARCHAR(5);
@@ -430,6 +448,58 @@ async function upsertDeviceAndInsertLog({
   };
 }
 
+async function upsertDeviceStatusDirect({ roomId, deviceKey, status }) {
+  const normalizedRoomId = normalizeRoomId(roomId);
+  const normalizedDeviceKey = sanitizeSwitchKey(deviceKey);
+  const normalizedStatus = String(status || "").toUpperCase() === "ON" ? "ON" : "OFF";
+
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("roomId", sql.Int, normalizedRoomId)
+    .input("deviceType", sql.NVarChar(50), normalizedDeviceKey)
+    .input("status", sql.NVarChar(5), normalizedStatus)
+    .query(`
+      DECLARE @deviceId INT;
+      DECLARE @prevStatus NVARCHAR(5);
+      DECLARE @logInserted BIT = 0;
+
+      SELECT TOP 1
+        @deviceId = device_id,
+        @prevStatus = device_status
+      FROM dbo.Devices
+      WHERE room_id = @roomId AND device_type = @deviceType
+      ORDER BY device_id;
+
+      IF @deviceId IS NULL
+      BEGIN
+        INSERT INTO dbo.Devices (room_id, device_status, last_update_time, device_type)
+        VALUES (@roomId, @status, SYSUTCDATETIME(), @deviceType);
+        SET @deviceId = SCOPE_IDENTITY();
+      END
+      ELSE
+      BEGIN
+        UPDATE dbo.Devices
+        SET device_status = @status,
+            last_update_time = SYSUTCDATETIME()
+        WHERE device_id = @deviceId;
+      END;
+
+      IF @prevStatus IS NULL OR @prevStatus <> @status
+      BEGIN
+        INSERT INTO dbo.DevicesLog (device_id, device_status)
+        VALUES (@deviceId, @status);
+        SET @logInserted = 1;
+      END;
+
+      SELECT @deviceId AS device_id, @logInserted AS log_inserted;
+    `);
+
+  return {
+    deviceId: result.recordset[0]?.device_id ?? null,
+    logInserted: Boolean(result.recordset[0]?.log_inserted),
+  };
+}
+
 function isOnValue(rawValue) {
   if (!rawValue) return false;
   const lower = String(rawValue).toLowerCase().trim();
@@ -438,6 +508,8 @@ function isOnValue(rawValue) {
 
 function toSwitchType(key) {
   const lower = String(key || "").toLowerCase();
+  if (lower.includes("fan") || lower.includes("vent")) return "fan";
+  if (lower.includes("dryer") || lower.includes("dry")) return "dryer";
   if (lower.includes("light")) return "lights";
   if (lower.includes("ac") || lower.includes("cool") || lower.includes("air")) return "ac";
   if (lower.includes("fridge") || lower.includes("cold")) return "fridge";
@@ -540,7 +612,56 @@ function extractSwitchStates(data, switchDefs = getAllSwitchDefs()) {
   return result;
 }
 
-function registerSwitch({ roomId, room_id: roomIdAlt, type, key } = {}) {
+async function ensureSwitchDeviceInDb({ roomId, deviceType }) {
+  const pool = await getPool();
+  const request = new sql.Request(pool)
+    .input("roomId", sql.Int, roomId)
+    .input("deviceType", sql.NVarChar(50), deviceType)
+    .input("status", sql.NVarChar(5), "OFF");
+
+  const roomResult = await request.query(`
+    SELECT TOP 1 room_id
+    FROM dbo.Rooms
+    WHERE room_id = @roomId
+  `);
+
+  if (!roomResult.recordset.length) {
+    throw createHttpError(`Room ${roomId} does not exist in database`, 404);
+  }
+
+  const result = await request.query(`
+    DECLARE @deviceId INT;
+
+    SELECT TOP 1 @deviceId = device_id
+    FROM dbo.Devices
+    WHERE room_id = @roomId AND device_type = @deviceType
+    ORDER BY device_id;
+
+    IF @deviceId IS NULL
+    BEGIN
+      INSERT INTO dbo.Devices (
+        room_id,
+        device_status,
+        last_update_time,
+        device_type
+      )
+      VALUES (
+        @roomId,
+        @status,
+        SYSUTCDATETIME(),
+        @deviceType
+      );
+
+      SET @deviceId = SCOPE_IDENTITY();
+    END;
+
+    SELECT @deviceId AS device_id;
+  `);
+
+  return result.recordset[0]?.device_id ?? null;
+}
+
+async function registerSwitch({ roomId, room_id: roomIdAlt, type, key } = {}) {
   const normalizedRoomId = normalizeRoomId(roomId ?? roomIdAlt);
   const normalizedType = normalizeSwitchType(type, key);
   const normalizedKey = key
@@ -563,12 +684,22 @@ function registerSwitch({ roomId, room_id: roomIdAlt, type, key } = {}) {
     type: normalizedType,
   };
 
+  const deviceId = await ensureSwitchDeviceInDb({
+    roomId: normalizedRoomId,
+    // Use unique switch key so multiple switches of the same type can coexist per room.
+    deviceType: normalizedKey,
+  });
+
   customSwitchDefs.push(newSwitch);
 
   return {
     ok: true,
     message: "Switch added",
-    switch: newSwitch,
+    switch: {
+      ...newSwitch,
+      deviceId,
+      status: "OFF",
+    },
   };
 }
 
@@ -604,23 +735,33 @@ async function getDevicesFromDb(pool, roomId) {
 }
 
 function mergeIotAndDbDevices(iotSwitches, dbDevices) {
-  const iotKeysMap = new Set(iotSwitches.map((s) => String(s.key || "").toLowerCase()));
-  const dbByKey = new Map(
-    (dbDevices || []).map((item) => [String(item.device_type || "").toLowerCase(), item]),
-  );
+  const dbByKeyBuckets = new Map();
   const dbByTypeBuckets = new Map();
+  const consumedDbIds = new Set();
+
   (dbDevices || []).forEach((item) => {
-    const bucketKey = String(toSwitchType(item.device_type || "")).toLowerCase();
-    const bucket = dbByTypeBuckets.get(bucketKey) || [];
-    bucket.push(item);
-    dbByTypeBuckets.set(bucketKey, bucket);
+    const keyBucketKey = String(item.device_type || "").toLowerCase();
+    const keyBucket = dbByKeyBuckets.get(keyBucketKey) || [];
+    keyBucket.push(item);
+    dbByKeyBuckets.set(keyBucketKey, keyBucket);
+
+    const typeBucketKey = String(toSwitchType(item.device_type || "")).toLowerCase();
+    const typeBucket = dbByTypeBuckets.get(typeBucketKey) || [];
+    typeBucket.push(item);
+    dbByTypeBuckets.set(typeBucketKey, typeBucket);
   });
   const result = [];
 
   // Add IoT switches with isConnected: true
   iotSwitches.forEach((s) => {
     const normalizedKey = String(s.key || "").toLowerCase();
-    let matchedDb = dbByKey.get(normalizedKey) || null;
+    const keyBucket = dbByKeyBuckets.get(normalizedKey) || [];
+    let matchedDb = keyBucket.shift() || null;
+    if (keyBucket.length === 0) {
+      dbByKeyBuckets.delete(normalizedKey);
+    } else {
+      dbByKeyBuckets.set(normalizedKey, keyBucket);
+    }
 
     // Backward-compatible fallback for old rows that only stored generic type.
     if (!matchedDb) {
@@ -633,6 +774,10 @@ function mergeIotAndDbDevices(iotSwitches, dbDevices) {
       }
     }
 
+    if (matchedDb?.device_id !== undefined && matchedDb?.device_id !== null) {
+      consumedDbIds.add(matchedDb.device_id);
+    }
+
     result.push({
       ...s,
       deviceId: matchedDb?.device_id ?? null,
@@ -641,15 +786,13 @@ function mergeIotAndDbDevices(iotSwitches, dbDevices) {
     });
   });
 
-  // Add DB devices that are NOT in IoT with isConnected: false
+  // Add all remaining DB devices that were not matched with IoT switches.
   dbDevices.forEach((dbDevice) => {
-    const dbKey = dbDevice.device_type || "";
-    const dbKeyLower = String(dbKey).toLowerCase();
-
-    // Skip if already in IoT
-    if (iotKeysMap.has(dbKeyLower)) {
+    if (consumedDbIds.has(dbDevice.device_id)) {
       return;
     }
+
+    const dbKey = dbDevice.device_type || "";
 
     result.push({
       key: dbKey,
@@ -667,10 +810,6 @@ function mergeIotAndDbDevices(iotSwitches, dbDevices) {
 }
 
 async function getData({ roomId: rawRoomId } = {}) {
-  if (!token) {
-    await login();
-  }
-
   const pool = await getPool();
   const roomId = normalizeRoomId(rawRoomId);
 
@@ -687,6 +826,10 @@ async function getData({ roomId: rawRoomId } = {}) {
       switches: mergedSwitches,
       message: "Room is not connected to CoreIoT. Returning room-local DB devices only.",
     };
+  }
+
+  if (!token) {
+    await login();
   }
 
   const deviceId = await getDeviceId();
@@ -709,10 +852,6 @@ async function getData({ roomId: rawRoomId } = {}) {
 }
 
 async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
-  if (!token) {
-    await login();
-  }
-
   const pool = await getPool();
   const roomId = normalizeRoomId(rawRoomId);
 
@@ -730,6 +869,10 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
         deviceLogsInserted: 0,
       },
     };
+  }
+
+  if (!token) {
+    await login();
   }
 
   const deviceId = await getDeviceId();
@@ -791,8 +934,8 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
       const saveResult = await upsertDeviceAndInsertLog({
         transaction,
         roomId,
-        // Store only the simple device type (e.g., "fan", "lights")
-        deviceType: item.type,
+        // Store by switch key so each switch persists independently.
+        deviceType: item.key || item.type,
         status: item.status === "ON" ? "ON" : "OFF",
       });
       summary.devicesSaved += 1;
@@ -848,15 +991,29 @@ function toRpcMethod(key) {
     dryer_on: "setDryer",
   };
 
-  const method = map[normalizedKey];
-  if (!method) {
-    throw createHttpError(`Unsupported control key: ${key}`, 400);
+  if (map[normalizedKey]) {
+    return map[normalizedKey];
   }
 
-  return method;
+  // Backward-compatible mapping for dynamic keys (e.g., fan_101_1, ac_101_2).
+  const normalizedType = toSwitchType(normalizedKey);
+  if (normalizedType === "fan") {
+    return "setFan";
+  }
+  if (normalizedType === "dryer") {
+    return "setDryer";
+  }
+  if (normalizedType === "ac") {
+    return "setCooler";
+  }
+
+  throw createHttpError(
+    `Unsupported control key: ${key}. Accepted keys include fan_on, dryer_on, cooler_on and fan/dryer/ac variants.`,
+    400,
+  );
 }
 
-async function controlDevice({ key, value }) {
+async function controlDevice({ key, value, roomId, room_id: roomIdAlt } = {}) {
   if (!key || value === undefined) {
     throw createHttpError("Missing key or value", 400);
   }
@@ -871,6 +1028,7 @@ async function controlDevice({ key, value }) {
 
   const method = toRpcMethod(key);
   const state = normalizeBooleanValue(value);
+  const resolvedRoomId = normalizeRoomId(roomId ?? roomIdAlt);
   const deviceId = await getDeviceId();
   const url = `${BASE_URL}/api/plugins/rpc/oneway/${deviceId}`;
   const payload = {
@@ -889,11 +1047,23 @@ async function controlDevice({ key, value }) {
     }),
   );
 
+  const deviceStatus = state ? "ON" : "OFF";
+  const dbWrite = await upsertDeviceStatusDirect({
+    roomId: resolvedRoomId,
+    deviceKey: key,
+    status: deviceStatus,
+  });
+
   return {
     ok: true,
     message: `RPC sent: ${method} -> ${state}`,
     data: response.data,
     rpc: payload,
+    db: {
+      roomId: resolvedRoomId,
+      deviceId: dbWrite.deviceId,
+      status: deviceStatus,
+    },
   };
 }
 
