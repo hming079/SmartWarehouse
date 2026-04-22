@@ -3,10 +3,10 @@ const schedulesController = require("./schedules.controller");
 
 const router = express.Router();
 
-router.get("/", schedulesController.getSchedules);
-router.post("/", schedulesController.postSchedule);
-router.patch("/:id", schedulesController.patchSchedule);
+router.get("/list", schedulesController.getSchedules);
+router.post("/create", schedulesController.postSchedule);
+router.patch("/:id/update", schedulesController.patchSchedule);
 router.patch("/:id/toggle", schedulesController.patchToggleSchedule);
-router.delete("/:id", schedulesController.removeSchedule);
+router.delete("/:id/delete", schedulesController.removeSchedule);
 
 module.exports = router;
