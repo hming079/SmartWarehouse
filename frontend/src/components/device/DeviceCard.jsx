@@ -12,20 +12,29 @@ const iconMap = {
 };
 
 const DeviceCard = ({ device, onToggle }) => {
-  const isOn = device.status === "on";
+  const isOn = device.status === "on" || device.status === true;
 
   return (
     <Card
-      className={`p-5 ${
-        isOn ? "bg-[#fff4b8] text-[#3b2f00]" : "bg-[#d8c7f4] text-[#18054a]"
+      className={`flex h-36 flex-col justify-between p-6 ${
+        isOn ? "bg-[#0a0446] text-white" : "bg-[#ebdcf9] text-[#2c1a63]"
       }`}
     >
-      <div className="mb-6 flex items-center justify-between">
-        <p className="text-3xl leading-none">{iconMap[device.type] || "◻"}</p>
-        <Toggle checked={isOn} onChange={onToggle} />
+      <div className="flex items-start justify-between">
+        <span className="text-2xl font-bold lowercase">{isOn ? "on" : "off"}</span>
+        <Toggle 
+          checked={isOn} 
+          onChange={onToggle} 
+          activeTrackColor="bg-[#64f456]"
+          activeKnobColor="bg-white"
+          inactiveTrackColor="bg-gray-400"
+          inactiveKnobColor="bg-white"
+        />
       </div>
-      <p className="text-3xl font-bold lowercase">{device.status}</p>
-      <p className="mt-2 text-2xl font-medium">{device.name}</p>
+      <div className="mt-4 flex items-end justify-between">
+        <span className="text-3xl leading-none">{iconMap[device.type] || "◻"}</span>
+        <span className="text-base font-medium">{device.name}</span>
+      </div>
     </Card>
   );
 };

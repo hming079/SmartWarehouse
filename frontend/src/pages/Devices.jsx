@@ -1,20 +1,27 @@
+import React, { useState } from "react";
 import { NavLink, Navigate, useParams } from "react-router-dom";
 import Card from "../components/ui/Card";
 import DeviceGrid from "../components/device/DeviceGrid";
 import TemperatureWidget from "../components/device/TemperatureWidget";
 import HumidityWidget from "../components/device/HumidityWidget";
+import OverviewACWidget from "../components/device/OverviewACWidget";
+import DeviceImageCard from "../components/device/DeviceImageCard";
+import Toggle from "../components/ui/Toggle";
 import { useDeviceData } from "../hooks/deviceHook";
+import { summary, devices as devicesMock } from "../constants/mockData";
 
 const DEVICE_VIEW_TABS = [
-  { key: "card", label: "Card form" },
-  { key: "list", label: "List form" },
+  { key: "overview", label: "Tổng quan" },
+  { key: "list", label: "Danh sách" },
+  { key: "card", label: "Thẻ" },
 ];
 
 const Devices = () => {
-  const { view = "card" } = useParams();
+  const { view = "overview" } = useParams();
   const normalizedView = String(view).toLowerCase();
-  const isCardView = normalizedView === "card";
+  const isOverviewView = normalizedView === "overview";
   const isListView = normalizedView === "list";
+  const isCardView = normalizedView === "card";
   const {
     deviceList,
     devicesLoading,
@@ -27,122 +34,134 @@ const Devices = () => {
     handleDeleteDevice,
   } = useDeviceData();
 
-  if (!isCardView && !isListView) {
-    return <Navigate to="/devices/card" replace />;
+  const [acOn, setAcOn] = useState(true);
+
+  if (!isOverviewView && !isListView && !isCardView) {
+    return <Navigate to="/devices/overview" replace />;
   }
 
   const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
   const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
 
+  const displayDevices = deviceList && deviceList.length > 0 ? deviceList : devicesMock;
+  const activeCount = displayDevices.filter((d) => d.status === "on" || d.status === true).length;
+
   return (
     <section>
-      {/* Navbar */}
-      <div className="mb-3 inline-flex rounded-xl bg-[#b7afe6] p-1">
-        {DEVICE_VIEW_TABS.map((tab) => (
-          <NavLink
-            key={tab.key}
-            to={`/devices/${tab.key}`}
-            className={({ isActive }) =>
-              `rounded-xl px-4 py-2 text-l font-semibold transition ${
-                isActive ? "bg-white text-[#1d1645]" : "text-[#1d1645]"
-              }`
-            }
-          >
-            {tab.label}
-          </NavLink>
-        ))}
+      {/* Navbar & Actions */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="inline-flex rounded-2xl bg-[#d8ccfa] p-1">
+          {DEVICE_VIEW_TABS.map((tab) => (
+            <NavLink
+              key={tab.key}
+              to={`/devices/${tab.key}`}
+              className={({ isActive }) =>
+                `rounded-xl px-6 py-2 text-lg font-bold transition ${
+                  isActive ? "bg-white text-black shadow-sm" : "text-black"
+                }`
+              }
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </div>
+        {(isListView || isCardView) && (
+          <button className="rounded-xl bg-[#d8ccfa] px-6 py-3 font-bold text-black transition hover:bg-[#c6bbef]">
+            + Thêm thiết bị
+          </button>
+        )}
       </div>
       {/* Content */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Control device */}
-        <div className="space-y-6 xl:col-span-2">
-          {/* Air conditioner */}
-          {/*<Card className="bg-[#ece6f8] p-6">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-[#1d1645]">Air Conditioner</h2>
-              <div className="flex items-center gap-3">
-                <span className="text-4xl font-semibold uppercase text-[#1d1645]">
-                  {acOn ? "ON" : "OFF"}
-                </span>
-                <Toggle checked={acOn} onChange={() => setAcOn((prev) => !prev)} />
-              </div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Main Content Area */}
+        <div className="flex-1 space-y-6">
+          {devicesLoading && <p className="text-sm text-gray-600">Đang tải thiết bị...</p>}
+          {devicesError && <p className="text-sm text-red-500">Lỗi kết nối API, đang hiển thị dữ liệu mẫu.</p>}
+          
+          {isOverviewView && (
+            <div className="space-y-6">
+              <OverviewACWidget temperature={Math.ceil(temp)} isOn={acOn} onToggle={() => setAcOn(!acOn)} />
+              <DeviceGrid devices={displayDevices.slice(0, 4)} onToggle={handleToggleDevice} />
             </div>
+          )}
 
-            <div className="flex items-center justify-center gap-4">
-              <Button className="h-12 w-12 p-0 text-3xl">-</Button>
-              <Gauge value={Math.ceil(temp)} />
-              <Button className="h-12 w-12 p-0 text-3xl">+</Button>
-            </div>
-          </Card>
-            */}
-          {isCardView ? (
-            <Card className="bg-[#ece6f8] p-4">
-              {devicesLoading && <p className="mb-3 text-sm text-gray-600">Dang tai devices...</p>}
-              {devicesError && <p className="mb-3 text-sm text-red-500">{devicesError}</p>}
-              <DeviceGrid devices={deviceList} onToggle={handleToggleDevice} />
-            </Card>
-          ) : (
-            <Card className="bg-[#ece6f8] p-4">
-              {devicesLoading && <p className="mb-3 text-sm text-gray-600">Dang tai devices...</p>}
-              {devicesError && <p className="mb-3 text-sm text-red-500">{devicesError}</p>}
-              <div className="overflow-x-auto">
-                <table className="min-w-full rounded-xl bg-white text-sm text-[#1d1645]">
-                  <thead>
-                    <tr className="border-b border-[#e8def8] text-left">
-                      <th className="px-4 py-3 font-semibold">Device</th>
-                      <th className="px-4 py-3 font-semibold">Type</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 font-semibold">Action</th>
+          {isListView && (
+            <div className="overflow-x-auto rounded-xl border border-[#f0f0f0] bg-[#f9f9fb] p-2">
+              <table className="min-w-full text-sm text-gray-800 bg-[#f9f9fb]">
+                <thead>
+                  <tr className="border-b border-[#e5e5e5] text-left text-gray-500">
+                    <th className="px-6 py-4 font-semibold whitespace-nowrap">Mã thiết bị</th>
+                    <th className="px-6 py-4 font-semibold whitespace-nowrap">Tên thiết bị</th>
+                    <th className="px-6 py-4 font-semibold whitespace-nowrap">Loại thiết bị</th>
+                    <th className="px-6 py-4 font-semibold whitespace-nowrap">Trạng thái</th>
+                    <th className="px-6 py-4 font-semibold whitespace-nowrap">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayDevices.map((device) => (
+                    <tr key={device.id} className="border-b border-[#f0f0f0] last:border-0 hover:bg-gray-50 transition">
+                      <td className="px-6 py-4 font-medium">
+                        <div className="flex items-center gap-4">
+                          <Toggle checked={device.status === "on" || device.status === true} onChange={() => handleToggleDevice(device.id)} />
+                          {device.id}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">{device.name}</td>
+                      <td className="px-6 py-4 capitalize">
+                        {device.type === "auto" ? "Tự động" : device.type === "control" ? "Điều khiển" : device.type}
+                      </td>
+                      <td className="px-6 py-4">
+                        {device.status === "on" || device.status === true ? "Đang hoạt động" : "Tắt"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-4">
+                          <button
+                            onClick={() => handleModifyDevice(device.id)}
+                            className="flex items-center gap-1 text-[#6b7280] transition hover:text-black"
+                          >
+                            <span>✎</span> Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDevice(device.id)}
+                            className="flex items-center gap-1 text-[#6b7280] transition hover:text-red-500"
+                          >
+                            <span>🗑</span> Xóa
+                          </button>
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {deviceList.map((device) => (
-                      <tr key={device.id} className="border-b border-[#f2ecfb] last:border-b-0">
-                        <td className="px-4 py-3 font-medium">{device.name}</td>
-                        <td className="px-4 py-3 capitalize">{device.type}</td>
-                        <td className="px-4 py-3 uppercase">{device.status}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => handleToggleDevice(device.id)}
-                              className="rounded-lg bg-[#d8c7f4] px-3 py-1.5 text-xs font-semibold text-[#1d1645] transition hover:bg-[#c9b2ef]"
-                            >
-                              Toggle
-                            </button>
-                            <button
-                              onClick={() => handleModifyDevice(device.id)}
-                              className="rounded-lg bg-[#efe7ff] px-3 py-1.5 text-xs font-semibold text-[#1d1645] transition hover:bg-[#e1d3ff]"
-                            >
-                              Modify
-                            </button>
-                            <button
-                              onClick={() => handleDeleteDevice(device.id)}
-                              className="rounded-lg bg-[#ffd9d9] px-3 py-1.5 text-xs font-semibold text-[#8a1f1f] transition hover:bg-[#ffc3c3]"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {isCardView && (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {displayDevices.map((device) => (
+                <DeviceImageCard
+                  key={device.id}
+                  device={device}
+                  onEdit={() => handleModifyDevice(device.id)}
+                  onDelete={() => handleDeleteDevice(device.id)}
+                />
+              ))}
+            </div>
           )}
         </div>
+
         {/* Right col - Sensor values */}
-        <div className="space-y-6">
-          {loading && <p className="text-sm text-gray-500">Dang tai telemetry...</p>}
-          {error && <p className="text-sm text-red-500">{error}</p>}
+        <div className="w-full lg:w-[350px] shrink-0 space-y-6">
+          {loading && <p className="text-sm text-gray-500">Đang tải telemetry...</p>}
           <TemperatureWidget temperature={temp} />
           <HumidityWidget humidity={hum} />
-          {/* <Card className="bg-[#ece6f8] p-8 text-center text-gray-700">
-            <p className="mb-3 text-2xl font-semibold">Active/All</p>
-            <p className="text-4xl font-bold">
-              {activeCount}/{deviceList.length || summary.totalDevices}
+          
+          <Card className="flex flex-col items-center justify-center bg-[#fcfafd] p-8 text-center border border-[#f2eefb]">
+            <p className="mb-2 text-xl font-medium text-black">Active/All</p>
+            <p className="text-5xl font-bold text-gray-500">
+              <span className="text-black">{activeCount}</span>/{displayDevices.length || summary.totalDevices}
             </p>
-          </Card> */}
+          </Card>
         </div>
       </div>
     </section>
