@@ -16,3 +16,30 @@ export const summary = {
   totalDevices: 5,
 };
 
+// Mock data for Power Consumed Chart
+export const powerChartData = [
+  { name: "Text", line1: 22, line2: 5 },
+  { name: "Text", line1: 3, line2: 10 },
+  { name: "Text", line1: 68, line2: 27 },
+  { name: "Text", line1: 52, line2: 66 },
+  { name: "Text", line1: 0, line2: 0 },
+];
+
+// Mock data for Temperature Bar Chart
+export const temperatureChartData = [
+  { height: 45 },
+  { height: 35 },
+  { height: 60 },
+  { height: 40 },
+  { height: 45 },
+  { height: 35 },
+  { height: 65 },
+  { height: 35 },
+  { height: 40 },
+  { height: 30 },
+  { height: 60 },
+  { height: 40 },
+  { height: 45 },
+  { height: 35 },
+];
+

@@ -20,8 +20,7 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/devices/:view?" element={<Devices />} />
           <Route path="/automation" element={<Automation />} />
-          <Route path="/schedules" element={<Schedules />} />
-          <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="*" element={<Placeholder />} />
         </Routes>
       </MainLayout>
