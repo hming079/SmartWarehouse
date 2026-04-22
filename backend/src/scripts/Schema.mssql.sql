@@ -203,7 +203,6 @@ GO
 CREATE TABLE dbo.Devices (
   device_id INT IDENTITY(1,1) NOT NULL,
   room_id INT NOT NULL,
-  device_name NVARCHAR(255) NULL,
   device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
   last_update_time DATETIME2 NULL,
   device_type NVARCHAR(50) NULL,

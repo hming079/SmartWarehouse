@@ -2,6 +2,17 @@ const { sql, getPool } = require("../../../../db");
 
 async function listRooms(floorId) {
   const pool = await getPool();
+  
+  if (!floorId) {
+    // Return all rooms if floorId not provided
+    const result = await pool
+      .request()
+      .query(
+        "SELECT room_id, floor_id, name, description FROM Rooms ORDER BY room_id",
+      );
+    return result.recordset;
+  }
+
   const result = await pool
     .request()
     .input("floor_id", sql.Int, floorId)

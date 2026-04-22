@@ -2,10 +2,7 @@ const floorService = require("./floor.service");
 
 async function getFloors(req, res, next) {
   try {
-    const zoneId = Number(req.query.zoneId);
-    if (!zoneId) {
-      return res.status(400).json({ message: "zoneId is required" });
-    }
+    const zoneId = req.query.zoneId ? Number(req.query.zoneId) : null;
 
     const data = await floorService.listFloors(zoneId);
     res.json({ data });
