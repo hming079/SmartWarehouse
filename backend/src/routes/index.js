@@ -2,6 +2,7 @@ const express = require("express");
 const userRoutes = require("../modules/user/user.route");
 const iotRoutes = require("../modules/iot/iot.route");
 const devicesRoutes = require("../modules/devices/devices.route");
+const sensorsRoutes = require("../modules/sensors/sensors.route");
 const alertsRoutes = require("../modules/alerts/alerts.route");
 const schedulesRoutes = require("../modules/schedules/schedules.route");
 const dashboardRoutes = require("../modules/dashboard/dashboard.route");
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.use("/users", userRoutes);
 router.use("/devices", devicesRoutes);
+router.use("/sensors", sensorsRoutes);
 router.use("/alerts", alertsRoutes);
 router.use("/schedules", schedulesRoutes);
 router.use("/dashboard", dashboardRoutes);
@@ -25,6 +27,7 @@ router.use("/zones", zoneRoutes);
 router.use("/floors", floorRoutes);
 router.use("/rooms", roomRoutes);
 router.use("/automation", automationRoutes);
+router.use("/automations", automationRoutes);
 router.use("/iot", iotRoutes);
 
 module.exports = router;

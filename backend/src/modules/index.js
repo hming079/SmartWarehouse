@@ -1,6 +1,7 @@
 const userRoutes = require("./user/user.route");
 const iotRoutes = require("./iot/iot.route");
 const devicesRoutes = require("./devices/devices.route");
+const sensorsRoutes = require("./sensors/sensors.route");
 const alertsRoutes = require("./alerts/alerts.route");
 const schedulesRoutes = require("./schedules/schedules.route");
 const dashboardRoutes = require("./dashboard/dashboard.route");
@@ -15,6 +16,7 @@ module.exports = {
   userRoutes,
   iotRoutes,
   devicesRoutes,
+  sensorsRoutes,
   alertsRoutes,
   schedulesRoutes,
   dashboardRoutes,

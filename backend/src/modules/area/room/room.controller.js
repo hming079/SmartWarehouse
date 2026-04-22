@@ -71,8 +71,38 @@ async function removeRoom(req, res, next) {
   }
 }
 
+async function getRoomSummary(req, res, next) {
+  try {
+    const roomId = Number(req.params.id);
+    if (!roomId) {
+      return res.status(400).json({ message: "room id is required" });
+    }
+
+    const data = await roomService.getRoomSummary(roomId);
+    res.json({ ok: true, data });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getRoomMetrics(req, res, next) {
+  try {
+    const roomId = Number(req.params.id);
+    if (!Number.isInteger(roomId) || roomId <= 0) {
+      return res.status(400).json({ message: "room id is required" });
+    }
+
+    const data = await roomService.getRoomMetrics(roomId);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRooms,
+  getRoomSummary,
+  getRoomMetrics,
   postRoom,
   patchRoom,
   removeRoom,
