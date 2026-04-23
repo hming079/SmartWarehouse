@@ -1,3 +1,4 @@
+const actionLogger = require("../action-logger/action-logger.service");
 const automationService = require("./automation.service");
 
 async function getRules(req, res, next) {
@@ -35,12 +36,10 @@ async function postRule(req, res, next) {
     }
 
     if (!Number.isInteger(thresholdId) || thresholdId <= 0) {
-      return res
-        .status(400)
-        .json({
-          ok: false,
-          message: "threshold_id must be a positive integer",
-        });
+      return res.status(400).json({
+        ok: false,
+        message: "threshold_id must be a positive integer",
+      });
     }
 
     if (!Number.isInteger(actionId) || actionId <= 0) {
@@ -54,12 +53,10 @@ async function postRule(req, res, next) {
       food_type_id !== null &&
       (!Number.isInteger(Number(food_type_id)) || Number(food_type_id) <= 0)
     ) {
-      return res
-        .status(400)
-        .json({
-          ok: false,
-          message: "food_type_id must be a positive integer",
-        });
+      return res.status(400).json({
+        ok: false,
+        message: "food_type_id must be a positive integer",
+      });
     }
 
     if (
@@ -74,7 +71,7 @@ async function postRule(req, res, next) {
       });
     }
 
-    const data = await automationService.createRule({
+    const createdRule = await automationService.createRule({
       name: String(name).trim(),
       apply_to: String(apply_to).trim(),
       threshold_id: thresholdId,
@@ -84,10 +81,19 @@ async function postRule(req, res, next) {
       is_active,
     });
 
+    await actionLogger.logAction({
+      code: "CREATE_AUTOMATION_RULE",
+      name: "Create Automation Rule",
+      targetType: "AUTOMATION_RULE",
+      targetId: createdRule.rule_id,
+      newValue: req.body,
+      actorUserId: req.user?.user_id,
+    });
+
     res.status(201).json({
       ok: true,
       message: "Rule created",
-      data,
+      data: createdRule,
     });
   } catch (err) {
     next(err);
@@ -128,6 +134,13 @@ async function removeRule(req, res, next) {
     }
 
     await automationService.deleteRule(ruleId);
+    await actionLogger.logAction({
+      code: "DELETE_AUTOMATION_RULE",
+      name: "Delete Automation Rule",
+      targetType: "AUTOMATION_RULE",
+      targetId: ruleId,
+      actorUserId: req.user?.user_id,
+    });
     res.status(200).json({ ok: true, message: "Rule deleted" });
   } catch (err) {
     next(err);

@@ -35,7 +35,18 @@ function normalizeOnOff(value) {
   return null;
 }
 
+async function ensureSensorLastValueColumn() {
+  const pool = await getPool();
+  await pool.request().batch(`
+    IF COL_LENGTH('dbo.Sensors', 'last_value') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Sensors ADD last_value FLOAT NULL;
+    END;
+  `);
+}
+
 async function listSensors(filters = {}, pagination = { page: 1, limit: 20 }) {
+  await ensureSensorLastValueColumn();
   const pool = await getPool();
   const request = pool.request();
 
@@ -121,7 +132,7 @@ async function listSensors(filters = {}, pagination = { page: 1, limit: 20 }) {
       s.name,
       s.type,
       s.status,
-      s.last_update AS last_reading,
+      COALESCE(s.last_value, s.last_update) AS last_reading,
       s.last_connection,
       r.name AS room_name,
       f.floor_id,
@@ -160,6 +171,7 @@ async function listSensors(filters = {}, pagination = { page: 1, limit: 20 }) {
 }
 
 async function getSensorById(sensorId) {
+  await ensureSensorLastValueColumn();
   const id = Number(sensorId);
   if (!Number.isInteger(id) || id <= 0) {
     throw createHttpError("Sensor ID must be a positive integer", 400);
@@ -173,7 +185,7 @@ async function getSensorById(sensorId) {
       s.name,
       s.type,
       s.status,
-      s.last_update AS last_reading,
+      COALESCE(s.last_value, s.last_update) AS last_reading,
       s.last_connection,
       s.setup_status,
       r.name AS room_name,

@@ -1,7 +1,10 @@
 const axios = require("axios");
 const { sql, getPool } = require("../../../db");
 
-const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(/\/+$/, "");
+const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(
+  /\/+$/,
+  "",
+);
 const TB_USERNAME = process.env.TB_USERNAME;
 const TB_PASSWORD = process.env.TB_PASSWORD;
 const TB_DEVICE_TOKEN = process.env.TB_DEVICE_TOKEN;
@@ -37,7 +40,10 @@ function createHttpError(message, status = 500) {
 
 function validateEnv() {
   if (!TB_USERNAME || !TB_PASSWORD) {
-    throw createHttpError("Missing TB_USERNAME or TB_PASSWORD in environment", 500);
+    throw createHttpError(
+      "Missing TB_USERNAME or TB_PASSWORD in environment",
+      500,
+    );
   }
 }
 
@@ -199,6 +205,15 @@ async function ensureDeviceTypeColumn(transaction) {
   `);
 }
 
+async function ensureSensorLastValueColumn(transaction) {
+  await new sql.Request(transaction).batch(`
+    IF COL_LENGTH('dbo.Sensors', 'last_value') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Sensors ADD last_value FLOAT NULL;
+    END;
+  `);
+}
+
 async function ensureRoomExists(transaction, roomId) {
   const roomResult = await new sql.Request(transaction)
     .input("roomId", sql.Int, roomId)
@@ -237,21 +252,23 @@ async function upsertSensorAndInsertData({
         INSERT INTO dbo.Sensors (
           sensor_id,
           threshold_id,
-          shedule_id,
           room_id,
           name,
           type,
           status,
+          last_value,
+          last_update,
           last_connection
         )
         VALUES (
           @sensorId,
           NULL,
-          NULL,
           @roomId,
           @sensorName,
           @sensorType,
           'ACTIVE',
+          @sensorValue,
+          @sensorValue,
           SYSUTCDATETIME()
         );
       END
@@ -260,6 +277,8 @@ async function upsertSensorAndInsertData({
         UPDATE dbo.Sensors
         SET name = @sensorName,
             status = 'ACTIVE',
+            last_value = @sensorValue,
+            last_update = @sensorValue,
             last_connection = SYSUTCDATETIME()
         WHERE sensor_id = @sensorId;
       END;
@@ -369,7 +388,8 @@ function isOnValue(rawValue) {
 function toSwitchType(key) {
   const lower = String(key || "").toLowerCase();
   if (lower.includes("light")) return "lights";
-  if (lower.includes("ac") || lower.includes("cool") || lower.includes("air")) return "ac";
+  if (lower.includes("ac") || lower.includes("cool") || lower.includes("air"))
+    return "ac";
   if (lower.includes("fridge") || lower.includes("cold")) return "fridge";
   if (lower.includes("temp")) return "temperature";
   if (lower.includes("humid")) return "humidity";
@@ -529,6 +549,7 @@ async function syncCoreIotToDb({ roomId: rawRoomId } = {}) {
 
     await ensureRoomExists(transaction, roomId);
     await ensureDeviceTypeColumn(transaction);
+    await ensureSensorLastValueColumn(transaction);
 
     const temperatureEntry = getLatestTelemetryEntry(data, "temperature");
     const humidityEntry = getLatestTelemetryEntry(data, "humidity");

@@ -153,6 +153,7 @@ CREATE TABLE dbo.Sensors (
   name NVARCHAR(255),
   type NVARCHAR(20) CHECK (type IN ('TEMPERATURE', 'HUMIDITY', 'CO2', 'SMOKE')),
   status NVARCHAR(20) CHECK (status IN ('ACTIVE', 'INACTIVE', 'MAINTENANCE')),
+  last_value FLOAT,
   last_update FLOAT,
   last_connection DATETIME2 NULL,
   setup_status NVARCHAR(5) NOT NULL CHECK (setup_status IN ('ON', 'OFF')),
@@ -289,3 +290,7 @@ EXEC sp_addextendedproperty
   @level1type = N'Table',  @level1name = N'Sensors',
   @level2type = N'Column', @level2name = N'status';
 GO
+
+
+ * * a + b c - d * e f
+ a*(b+c)*(d-e*f)

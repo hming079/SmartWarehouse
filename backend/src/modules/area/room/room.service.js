@@ -1,10 +1,19 @@
 const { sql, getPool } = require("../../../../db");
-const { redisGet } = require("../../../utils/redis");
 
 function createHttpError(message, status = 500) {
   const error = new Error(message);
   error.status = status;
   return error;
+}
+
+async function ensureSensorLastValueColumn() {
+  const pool = await getPool();
+  await pool.request().batch(`
+    IF COL_LENGTH('dbo.Sensors', 'last_value') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Sensors ADD last_value FLOAT NULL;
+    END;
+  `);
 }
 
 async function listRooms(floorId) {
@@ -47,15 +56,24 @@ async function createRoom({ floor_id, name, description }) {
 
 async function updateRoom(roomId, { floor_id, name, description }) {
   const pool = await getPool();
-  await pool
+  const result = await pool
     .request()
     .input("room_id", sql.Int, roomId)
     .input("floor_id", sql.Int, Number(floor_id))
     .input("name", sql.NVarChar, name)
     .input("description", sql.NVarChar, description || "")
-    .query(
-      "UPDATE Rooms SET floor_id = @floor_id, name = @name, description = @description WHERE room_id = @room_id",
-    );
+    .query(`
+      UPDATE Rooms
+      SET floor_id = @floor_id, name = @name, description = @description
+      WHERE room_id = @room_id;
+
+      SELECT @@ROWCOUNT AS affected;
+    `);
+
+  const affected = Number(result.recordset?.[0]?.affected || 0);
+  if (affected === 0) {
+    throw createHttpError("Room not found", 404);
+  }
 
   return {
     room_id: Number(roomId),
@@ -67,13 +85,24 @@ async function updateRoom(roomId, { floor_id, name, description }) {
 
 async function deleteRoom(roomId) {
   const pool = await getPool();
-  await pool
+  const result = await pool
     .request()
     .input("room_id", sql.Int, roomId)
-    .query("DELETE FROM Rooms WHERE room_id = @room_id");
+    .query(`
+      DELETE FROM Rooms
+      WHERE room_id = @room_id;
+
+      SELECT @@ROWCOUNT AS affected;
+    `);
+
+  const affected = Number(result.recordset?.[0]?.affected || 0);
+  if (affected === 0) {
+    throw createHttpError("Room not found", 404);
+  }
 }
 
 async function getRoomSummary(roomId) {
+  await ensureSensorLastValueColumn();
   const pool = await getPool();
 
   const roomResult = await pool
@@ -91,10 +120,10 @@ async function getRoomSummary(roomId) {
     .request()
     .input("roomId", sql.Int, Number(roomId)).query(`
     SELECT
-      AVG(CASE WHEN s.type = 'TEMPERATURE' THEN s.last_update END) AS avg_temperature,
-      AVG(CASE WHEN s.type = 'HUMIDITY' THEN s.last_update END) AS avg_humidity,
-      AVG(CASE WHEN s.type = 'CO2' THEN s.last_update END) AS avg_co2,
-      AVG(CASE WHEN s.type = 'SMOKE' THEN s.last_update END) AS avg_smoke,
+      AVG(CASE WHEN s.type = 'TEMPERATURE' THEN COALESCE(s.last_value, s.last_update) END) AS avg_temperature,
+      AVG(CASE WHEN s.type = 'HUMIDITY' THEN COALESCE(s.last_value, s.last_update) END) AS avg_humidity,
+      AVG(CASE WHEN s.type = 'CO2' THEN COALESCE(s.last_value, s.last_update) END) AS avg_co2,
+      AVG(CASE WHEN s.type = 'SMOKE' THEN COALESCE(s.last_value, s.last_update) END) AS avg_smoke,
       COUNT(*) AS sensors_total,
       SUM(
         CASE
@@ -133,29 +162,24 @@ async function getRoomSummary(roomId) {
 }
 
 async function getRoomMetrics(roomId) {
+  await ensureSensorLastValueColumn();
   const id = Number(roomId);
   if (!Number.isInteger(id) || id <= 0) {
     throw createHttpError("room id is required", 400);
   }
 
-  const prefix = process.env.REDIS_ROOM_METRICS_KEY_PREFIX || "room:metrics:";
-  const key = `${prefix}${id}`;
+  const pool = await getPool();
+  const result = await pool.request().input("roomId", sql.Int, id).query(`
+    SELECT
+      AVG(CASE WHEN s.type = 'TEMPERATURE' THEN COALESCE(s.last_value, s.last_update) END) AS temperature,
+      AVG(CASE WHEN s.type = 'HUMIDITY' THEN COALESCE(s.last_value, s.last_update) END) AS humidity
+    FROM dbo.Sensors s
+    WHERE s.room_id = @roomId
+  `);
 
-  const raw = await redisGet(key);
-  if (!raw) {
-    return { temperature: null, humidity: null };
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (_) {
-    throw createHttpError("Room metrics cache is not valid JSON", 502);
-  }
-
-  const temperature =
-    parsed?.temperature ?? parsed?.averages?.temperature ?? null;
-  const humidity = parsed?.humidity ?? parsed?.averages?.humidity ?? null;
+  const row = result.recordset?.[0] || {};
+  const temperature = row.temperature ?? null;
+  const humidity = row.humidity ?? null;
 
   return {
     temperature: temperature === null ? null : Number(temperature),

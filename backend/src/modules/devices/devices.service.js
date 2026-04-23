@@ -217,9 +217,6 @@ async function getDeviceById(deviceId) {
 }
 
 async function createDevice(payload) {
-  await ensureControlModeColumn();
-  await ensureLifecycleStatusColumn();
-
   const roomId = Number(payload.room_id ?? payload.roomId);
   if (!Number.isInteger(roomId) || roomId <= 0) {
     throw createHttpError(
@@ -227,6 +224,9 @@ async function createDevice(payload) {
       400,
     );
   }
+
+  await ensureControlModeColumn();
+  await ensureLifecycleStatusColumn();
 
   const name = payload.device_name ?? payload.name ?? null;
   const type = payload.device_type ?? payload.type ?? null;
@@ -454,8 +454,6 @@ function mapDeviceTypeToControlKey(deviceType) {
 }
 
 async function executeCommand(deviceId, command) {
-  await ensureControlModeColumn();
-
   const normalizedCommand =
     normalizeTurnAction(command) || normalizeOnOff(command);
   if (!normalizedCommand) {
@@ -464,6 +462,8 @@ async function executeCommand(deviceId, command) {
       400,
     );
   }
+
+  await ensureControlModeColumn();
 
   const device = await getDeviceById(deviceId);
   const mode = String(device.control_mode || "MANUAL").toUpperCase();
