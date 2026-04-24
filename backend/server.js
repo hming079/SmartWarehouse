@@ -27,6 +27,7 @@ app.use(
 );
 const PORT = Number(process.env.PORT) || 5001;
 app.use("/api", routeV1);
+app.use("/api/v1", routeV1);
 app.use(notFound);
 app.use(errorHandler);
 

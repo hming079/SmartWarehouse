@@ -13,6 +13,7 @@ const AreaManagement = () => {
   const [zones, setZones] = useState([]);
   const [floors, setFloors] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [foodTypes, setFoodTypes] = useState([]);
 
   const [selectedZone, setSelectedZone] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
@@ -34,12 +35,17 @@ const AreaManagement = () => {
     setRooms(res.data || []);
   };
 
+  const loadFoodTypes = async () => {
+    const res = await api.getFoodTypes();
+    setFoodTypes(res.data || []);
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
         setLoading(true);
         setError("");
-        await loadZones();
+        await Promise.all([loadZones(), loadFoodTypes()]);
       } catch (err) {
         setError(err.message || "Không thể tải zones");
       } finally {
@@ -118,10 +124,10 @@ const AreaManagement = () => {
     }
   };
 
-  const handleAddRoom = async ({ name, description }) => {
+  const handleAddRoom = async ({ name, description, food_type_id }) => {
     if (!selectedFloor) return;
     try {
-      await api.createRoom({ floor_id: selectedFloor.floor_id, name, description });
+      await api.createRoom({ floor_id: selectedFloor.floor_id, food_type_id, name, description });
       await loadRooms(selectedFloor.floor_id);
     } catch (err) {
       setError(err.message || "Không thể thêm room");
@@ -192,6 +198,7 @@ const AreaManagement = () => {
         <RoomList
           rooms={rooms}
           selectedFloor={selectedFloor}
+          foodTypes={foodTypes}
           onAdd={handleAddRoom}
           onDelete={handleDeleteRoom}
           onSelect={handleOpenRoomDetail}
