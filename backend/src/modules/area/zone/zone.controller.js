@@ -2,10 +2,7 @@ const zoneService = require("./zone.service");
 
 async function getZones(req, res, next) {
   try {
-    const locationId = Number(req.query.locationId);
-    if (!locationId) {
-      return res.status(400).json({ message: "locationId is required" });
-    }
+    const locationId = req.query.locationId ? Number(req.query.locationId) : null;
 
     const data = await zoneService.listZones(locationId);
     res.json({ data });

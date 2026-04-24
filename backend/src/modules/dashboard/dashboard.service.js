@@ -124,7 +124,6 @@ async function getDeviceStatus({ roomId }) {
       SELECT
         d.device_id AS id,
         d.room_id,
-        d.device_name AS name,
         d.device_type AS type,
         d.device_status AS status,
         d.last_update_time,

@@ -25,7 +25,7 @@ const DeviceCard = ({ device, onToggle }) => {
         <Toggle checked={isOn} onChange={onToggle} />
       </div>
       <p className="text-3xl font-bold lowercase">{device.status}</p>
-      <p className="mt-2 text-2xl font-medium">{device.name}</p>
+      <p className="mt-2 text-2xl font-medium">{device.name + '_' + device.deviceId}</p>
     </Card>
   );
 };

@@ -18,17 +18,35 @@ async function ensureSensorLastValueColumn() {
 
 async function listRooms(floorId) {
   const pool = await getPool();
+  
+  if (!floorId) {
+    // Return all rooms if floorId not provided
+    const result = await pool
+      .request()
+      .query(
+        `SELECT r.room_id, r.floor_id, r.food_type_id, r.name, r.description, ft.name AS food_type_name
+         FROM Rooms r
+         LEFT JOIN FoodTypes ft ON ft.type_id = r.food_type_id
+         ORDER BY r.room_id`,
+      );
+    return result.recordset;
+  }
+
   const result = await pool
     .request()
     .input("floor_id", sql.Int, floorId)
     .query(
-      "SELECT room_id, floor_id, name, description FROM Rooms WHERE floor_id = @floor_id ORDER BY room_id",
+      `SELECT r.room_id, r.floor_id, r.food_type_id, r.name, r.description, ft.name AS food_type_name
+       FROM Rooms r
+       LEFT JOIN FoodTypes ft ON ft.type_id = r.food_type_id
+       WHERE r.floor_id = @floor_id
+       ORDER BY r.room_id`,
     );
 
   return result.recordset;
 }
 
-async function createRoom({ floor_id, name, description }) {
+async function createRoom({ floor_id, food_type_id, name, description }) {
   const pool = await getPool();
   const nextIdResult = await pool
     .request()
@@ -40,15 +58,25 @@ async function createRoom({ floor_id, name, description }) {
     .request()
     .input("room_id", sql.Int, nextId)
     .input("floor_id", sql.Int, Number(floor_id))
+    .input("food_type_id", sql.Int, Number(food_type_id))
     .input("name", sql.NVarChar, name)
     .input("description", sql.NVarChar, description || "")
     .query(
-      "INSERT INTO Rooms (room_id, floor_id, name, description) VALUES (@room_id, @floor_id, @name, @description)",
+      "INSERT INTO Rooms (room_id, floor_id, food_type_id, name, description) VALUES (@room_id, @floor_id, @food_type_id, @name, @description)",
     );
+
+  const typeResult = await pool
+    .request()
+    .input("food_type_id", sql.Int, Number(food_type_id))
+    .query("SELECT name FROM FoodTypes WHERE type_id = @food_type_id");
+
+  const foodTypeName = typeResult.recordset[0]?.name || null;
 
   return {
     room_id: nextId,
     floor_id: Number(floor_id),
+    food_type_id: Number(food_type_id),
+    food_type_name: foodTypeName,
     name,
     description: description || "",
   };
@@ -75,9 +103,18 @@ async function updateRoom(roomId, { floor_id, name, description }) {
     throw createHttpError("Room not found", 404);
   }
 
+  const typeResult = await pool
+    .request()
+    .input("food_type_id", sql.Int, Number(food_type_id))
+    .query("SELECT name FROM FoodTypes WHERE type_id = @food_type_id");
+
+  const foodTypeName = typeResult.recordset[0]?.name || null;
+
   return {
     room_id: Number(roomId),
     floor_id: Number(floor_id),
+    food_type_id: Number(food_type_id),
+    food_type_name: foodTypeName,
     name,
     description: description || "",
   };

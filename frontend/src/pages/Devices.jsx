@@ -1,4 +1,5 @@
-import { NavLink, Navigate, useParams } from "react-router-dom";
+import { NavLink, Navigate, useParams, useNavigate, useLocation } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
 import Card from "../components/ui/Card";
 import DeviceGrid from "../components/device/DeviceGrid";
 import TemperatureWidget from "../components/device/TemperatureWidget";
@@ -10,11 +11,63 @@ const DEVICE_VIEW_TABS = [
   { key: "list", label: "List form" },
 ];
 
+const DEVICE_TYPE_OPTIONS = [
+  { value: "fan", label: "Fan" },
+  { value: "dryer", label: "Dryer" },
+  { value: "ac", label: "AC / Cooling" },
+  { value: "lights", label: "Lights" },
+];
+
+const DEVICE_VIEW_PREF_KEY = "smartwarehouse.device-view-preference";
+const DEVICE_SORT_PREF_KEY = "smartwarehouse.device-sort-preference";
+
 const Devices = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { view = "card" } = useParams();
   const normalizedView = String(view).toLowerCase();
   const isCardView = normalizedView === "card";
   const isListView = normalizedView === "list";
+
+  // Save view preference when it changes
+  useEffect(() => {
+    if ((isCardView || isListView) && typeof window !== "undefined") {
+      window.localStorage.setItem(DEVICE_VIEW_PREF_KEY, normalizedView);
+    }
+  }, [normalizedView, isCardView, isListView]);
+
+  // Load and restore saved view preference
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(DEVICE_VIEW_PREF_KEY);
+      // If no view specified in URL (defaults to card) and we have a saved preference that's different, navigate to it
+      if (view === "card" && saved && saved !== "card") {
+        navigate(
+          {
+            pathname: `/devices/${saved}`,
+            search: location.search,
+          },
+          { replace: true },
+        );
+      } else if (!view || view === "card") {
+        // Ensure we're always on a valid view
+        const preferredView = saved || "card";
+        if (preferredView !== "card") {
+          navigate(
+            {
+              pathname: `/devices/${preferredView}`,
+              search: location.search,
+            },
+            { replace: true },
+          );
+        }
+      }
+    } catch (_) {
+      // Silently fail
+    }
+  }, [view, navigate, location.search]);
   const {
     deviceList,
     devicesLoading,
@@ -25,14 +78,96 @@ const Devices = () => {
     handleToggleDevice,
     handleModifyDevice,
     handleDeleteDevice,
+    handleAddDevice,
   } = useDeviceData();
+  const [selectedDeviceType, setSelectedDeviceType] = useState("fan");
 
-  if (!isCardView && !isListView) {
-    return <Navigate to="/devices/card" replace />;
-  }
+  // Initialize sort config from localStorage
+  const [sortConfig, setSortConfig] = useState(() => {
+    if (typeof window === "undefined") {
+      return { key: "deviceName", direction: "asc" };
+    }
+    try {
+      const saved = window.localStorage.getItem(DEVICE_SORT_PREF_KEY);
+      return saved ? JSON.parse(saved) : { key: "deviceName", direction: "asc" };
+    } catch (_) {
+      return { key: "deviceName", direction: "asc" };
+    }
+  });
+
+  // Save sort config to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(DEVICE_SORT_PREF_KEY, JSON.stringify(sortConfig));
+    }
+  }, [sortConfig]);
 
   const temp = Number(payload?.data?.temperature?.[0]?.value ?? 30).toFixed(2);
   const hum = Number(payload?.data?.humidity?.[0]?.value ?? 30).toFixed(2);
+
+  const getDeviceNameValue = (device) => String(device.deviceName || device.name || "").toLowerCase();
+
+  const sortedDeviceList = useMemo(() => {
+    const list = [...deviceList];
+
+    list.sort((a, b) => {
+      let aValue;
+      let bValue;
+
+      if (sortConfig.key === "deviceName") {
+        aValue = getDeviceNameValue(a);
+        bValue = getDeviceNameValue(b);
+      } else if (sortConfig.key === "type") {
+        aValue = String(a.type || "").toLowerCase();
+        bValue = String(b.type || "").toLowerCase();
+      } else if (sortConfig.key === "status") {
+        aValue = String(a.status || "").toLowerCase();
+        bValue = String(b.status || "").toLowerCase();
+      } else {
+        aValue = "";
+        bValue = "";
+      }
+
+      if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+
+      const aId = Number(a.deviceId);
+      const bId = Number(b.deviceId);
+      if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) {
+        return sortConfig.direction === "asc" ? aId - bId : bId - aId;
+      }
+
+      return 0;
+    });
+
+    return list;
+  }, [deviceList, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const sortArrow = (key) => {
+    if (sortConfig.key !== key) return "↕";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
+  };
+
+  if (!isCardView && !isListView) {
+    return (
+      <Navigate
+        to={{
+          pathname: "/devices/card",
+          search: location.search,
+        }}
+        replace
+      />
+    );
+  }
 
   return (
     <section>
@@ -41,7 +176,10 @@ const Devices = () => {
         {DEVICE_VIEW_TABS.map((tab) => (
           <NavLink
             key={tab.key}
-            to={`/devices/${tab.key}`}
+            to={{
+              pathname: `/devices/${tab.key}`,
+              search: location.search,
+            }}
             className={({ isActive }) =>
               `rounded-xl px-4 py-2 text-l font-semibold transition ${
                 isActive ? "bg-white text-[#1d1645]" : "text-[#1d1645]"
@@ -51,6 +189,26 @@ const Devices = () => {
             {tab.label}
           </NavLink>
         ))}
+      </div>
+      {/* Add device button */}
+      <div className="mb-4 flex items-center justify-start gap-2">
+        <select
+          value={selectedDeviceType}
+          onChange={(event) => setSelectedDeviceType(event.target.value)}
+          className="rounded-xl border border-[#cfc3ef] bg-white px-3 py-2 text-sm text-[#1d1645]"
+        >
+          {DEVICE_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => handleAddDevice(selectedDeviceType)}
+          className="rounded-xl bg-[#6c4fd3] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#5d41c2] focus:outline-none focus:ring-2 focus:ring-[#6c4fd3] focus:ring-offset-2"
+        >
+          + Add Device
+        </button>
       </div>
       {/* Content */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -89,18 +247,56 @@ const Devices = () => {
                 <table className="min-w-full rounded-xl bg-white text-sm text-[#1d1645]">
                   <thead>
                     <tr className="border-b border-[#e8def8] text-left">
-                      <th className="px-4 py-3 font-semibold">Device</th>
-                      <th className="px-4 py-3 font-semibold">Type</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("deviceName")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Device Name <span className="text-lg font-bold leading-none">{sortArrow("deviceName")}</span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("type")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Type <span className="text-lg font-bold leading-none">{sortArrow("type")}</span>
+                        </button>
+                      </th>
+                      <th className="px-4 py-3 font-semibold">
+                        <button
+                          type="button"
+                          onClick={() => handleSort("status")}
+                          className="inline-flex items-center gap-1"
+                        >
+                          Status <span className="text-lg font-bold leading-none">{sortArrow("status")}</span>
+                        </button>
+                      </th>
                       <th className="px-4 py-3 font-semibold">Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {deviceList.map((device) => (
+                    {sortedDeviceList.map((device) => (
                       <tr key={device.id} className="border-b border-[#f2ecfb] last:border-b-0">
-                        <td className="px-4 py-3 font-medium">{device.name}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {(device.deviceName || device.name || "N/A")}
+                          {device.deviceId !== undefined && device.deviceId !== null
+                            ? `_${device.deviceId}`
+                            : ""}
+                        </td>
                         <td className="px-4 py-3 capitalize">{device.type}</td>
-                        <td className="px-4 py-3 uppercase">{device.status}</td>
+                        {/* <td className="px-4 py-3 uppercase">{device.status}</td> */}
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold uppercase ${
+                            device.status === 'on' 
+                              ? 'bg-green-200 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                            {device.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-2">
                             <button

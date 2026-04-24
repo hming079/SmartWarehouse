@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import ZoneList from "../components/ZoneList";
 import FloorList from "../components/FloorList";
 import RoomList from "../components/RoomList";
@@ -7,9 +8,12 @@ import { api } from "../api";
 const LOCATION_ID = 1;
 
 const AreaManagement = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [zones, setZones] = useState([]);
   const [floors, setFloors] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [foodTypes, setFoodTypes] = useState([]);
 
   const [selectedZone, setSelectedZone] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
@@ -31,12 +35,17 @@ const AreaManagement = () => {
     setRooms(res.data || []);
   };
 
+  const loadFoodTypes = async () => {
+    const res = await api.getFoodTypes();
+    setFoodTypes(res.data || []);
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
         setLoading(true);
         setError("");
-        await loadZones();
+        await Promise.all([loadZones(), loadFoodTypes()]);
       } catch (err) {
         setError(err.message || "Không thể tải zones");
       } finally {
@@ -115,10 +124,10 @@ const AreaManagement = () => {
     }
   };
 
-  const handleAddRoom = async ({ name, description }) => {
+  const handleAddRoom = async ({ name, description, food_type_id }) => {
     if (!selectedFloor) return;
     try {
-      await api.createRoom({ floor_id: selectedFloor.floor_id, name, description });
+      await api.createRoom({ floor_id: selectedFloor.floor_id, food_type_id, name, description });
       await loadRooms(selectedFloor.floor_id);
     } catch (err) {
       setError(err.message || "Không thể thêm room");
@@ -135,9 +144,36 @@ const AreaManagement = () => {
     }
   };
 
+  const handleOpenRoomDetail = (room) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("roomId", String(room.room_id));
+
+    if (selectedZone?.zone_id) {
+      nextParams.set("areaId", String(selectedZone.zone_id));
+    }
+
+    if (selectedFloor?.floor_id) {
+      nextParams.set("floorId", String(selectedFloor.floor_id));
+    }
+
+    navigate(
+      {
+        pathname: `/rooms/${room.room_id}`,
+        search: `?${nextParams.toString()}`,
+      },
+      {
+        state: {
+          room,
+          floor: selectedFloor,
+          zone: selectedZone,
+        },
+      },
+    );
+  };
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-[#24124d]">Location → Area → Floor → Room</h1>
+      <h1 className="text-2xl font-bold text-[#24124d]">Select Room to check</h1>
       {loading && <p className="text-sm text-gray-500">Đang tải dữ liệu...</p>}
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -159,7 +195,14 @@ const AreaManagement = () => {
           onDelete={handleDeleteFloor}
         />
 
-        <RoomList rooms={rooms} selectedFloor={selectedFloor} onAdd={handleAddRoom} onDelete={handleDeleteRoom} />
+        <RoomList
+          rooms={rooms}
+          selectedFloor={selectedFloor}
+          foodTypes={foodTypes}
+          onAdd={handleAddRoom}
+          onDelete={handleDeleteRoom}
+          onSelect={handleOpenRoomDetail}
+        />
       </div>
     </div>
   );

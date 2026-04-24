@@ -25,3 +25,5 @@ yarn-error.log*
 .env
 .notebook
 node_modules/
+
+test.js
