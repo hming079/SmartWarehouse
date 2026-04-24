@@ -10,6 +10,7 @@ const settingsRoutes = require("../modules/settings/settings.route");
 const zoneRoutes = require("../modules/area/zone/zone.route");
 const floorRoutes = require("../modules/area/floor/floor.route");
 const roomRoutes = require("../modules/area/room/room.route");
+const foodTypeRoutes = require("../modules/area/food-type/food-type.route");
 const automationRoutes = require("../modules/automation/automation.route");
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.use("/settings", settingsRoutes);
 router.use("/zones", zoneRoutes);
 router.use("/floors", floorRoutes);
 router.use("/rooms", roomRoutes);
+router.use("/food-types", foodTypeRoutes);
 router.use("/automation", automationRoutes);
 router.use("/iot", iotRoutes);
 

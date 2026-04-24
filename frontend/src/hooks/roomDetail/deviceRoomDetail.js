@@ -1,149 +1,52 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { toUiStatus, toUiType, toDbDevice, toSwitchDevice, mergeDevicesByDeviceId  } from "../../utils/deviceMapper"
 
 const IS_BROWSER = typeof window !== "undefined";
 const PENDING_STATUS_TTL_MS = 5000;
 
-// Utility mappers
-const toUiStatus = (status) =>
-	String(status || "").toUpperCase() === "ON" ? "on" : "off";
 
-const toUiType = (type, name) => {
-	const normalized = `${type || ""} ${name || ""}`.toLowerCase();
-	if (normalized.includes("temp")) return "temperature";
-	if (normalized.includes("humid")) return "humidity";
-	if (normalized.includes("fan") || normalized.includes("vent")) return "fan";
-	if (normalized.includes("dryer") || normalized.includes("dry")) return "dryer";
-	if (normalized.includes("light")) return "lights";
-	if (normalized.includes("ac") || normalized.includes("air") || normalized.includes("cool")) return "ac";
-	if (normalized.includes("fridge") || normalized.includes("cold")) return "fridge";
-	return "lights";
-};
-
-const toSwitchDevice = (item) => {
-	const fallbackName = item.name || item.key || "Switch";
-	const hasDbDeviceId = item.deviceId !== null && item.deviceId !== undefined;
-	const fallbackKey = item.key || "unknown";
-
-	return {
-		id: hasDbDeviceId ? `switch-db-${item.deviceId}` : `switch-${fallbackKey}`,
-		name: fallbackName,
-		deviceName: item.deviceName || fallbackName,
-		deviceId: item.deviceId ?? null,
-		deviceKey: item.key || null,
-		status: toUiStatus(item.status),
-		type: toUiType(item.type, item.name || item.key),
-		isConnected: item.isConnected !== false,
-	};
-};
-
-const toDbDevice = (item) => {
-	const deviceType = String(item?.type || "").trim();
-	const normalizedType = toUiType(deviceType, item?.name);
-	const fallbackName =
-		String(item?.name || "").trim() ||
-		String(item?.device_name || "").trim() ||
-		`Device ${item?.id ?? "--"}`;
-
-	return {
-		id: item?.id !== undefined && item?.id !== null ? `db-${item.id}` : `db-${fallbackName}`,
-		name: fallbackName,
-		deviceName: fallbackName,
-		deviceId: item?.id ?? null,
-		deviceKey: deviceType || normalizedType,
-		status: toUiStatus(item?.status),
-		type: normalizedType,
-		isConnected: false,
-	};
-};
-
-const mergeDevicesByDeviceId = (iotDevices, dbDevices) => {
-	const merged = [...(Array.isArray(iotDevices) ? iotDevices : [])];
-
-	(dbDevices || []).forEach((dbDevice) => {
-		const dbId = dbDevice?.deviceId;
-		if (dbId === null || dbId === undefined) {
-			merged.push(dbDevice);
-			return;
-		}
-
-		const existingIndex = merged.findIndex(
-			(item) => item?.deviceId !== null && item?.deviceId !== undefined && Number(item.deviceId) === Number(dbId),
-		);
-
-		if (existingIndex === -1) {
-			merged.push(dbDevice);
-			return;
-		}
-
-		const existing = merged[existingIndex];
-		merged[existingIndex] = {
-			...dbDevice,
-			...existing,
-			deviceName: existing.deviceName || dbDevice.deviceName,
-			name: existing.name || dbDevice.name,
-		};
-	});
-	return merged;
-};
-
-const fetchDbDevices = async (roomIdParam) => {
-	const dbUrl = new URL(`${API_BASE_URL}/api/devices`);
-	if (roomIdParam) {
-		dbUrl.searchParams.append("roomId", roomIdParam);
-	}
-
-	const dbRes = await fetch(dbUrl.toString());
-	if (!dbRes.ok) {
-		throw new Error(`DB request failed with status ${dbRes.status}`);
-	}
-
-	const dbJson = await dbRes.json();
-	return Array.isArray(dbJson?.data) ? dbJson.data.map(toDbDevice) : [];
-};
-
-const createTelemetryDevice = ({ id, label, value, status, unit, type }) => ({
-	id,
-	name: Number.isNaN(value) ? label : `${label} (${value.toFixed(1)}${unit})`,
-	deviceName: label,
-	deviceId: null,
-	deviceKey: type,
-	status,
-	type,
-	isConnected: true,
+export const createTelemetryDevice = ({ id, label, value, status, unit, type }) => ({
+    id,
+    name: Number.isNaN(value) ? label : `${label} (${value.toFixed(1)}${unit})`,
+    deviceName: label,
+    deviceId: null,
+    deviceKey: type,
+    status,
+    type,
+    isConnected: true,
 });
 
 // Telemetry transformation
-const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
-	const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
-	const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
-	const status = toUiStatus(deviceStatus);
-	const switchDevices = Array.isArray(switches) ? switches.map(toSwitchDevice) : [];
+export const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
+    const tempValue = Number(data?.temperature?.[0]?.value ?? NaN);
+    const humValue = Number(data?.humidity?.[0]?.value ?? NaN);
+    const status = toUiStatus(deviceStatus);
+    const switchDevices = Array.isArray(switches) ? switches.map(toSwitchDevice) : [];
 
-	if (switchDevices.length > 0) {
-		return switchDevices;
-	}
+    if (switchDevices.length > 0) {
+        return switchDevices;
+    }
 
-	return [
-		createTelemetryDevice({
-			id: "telemetry-temperature",
-			label: "Temperature",
-			value: tempValue,
-			status,
-			unit: " C",
-			type: "temperature",
-		}),
-		createTelemetryDevice({
-			id: "telemetry-humidity",
-			label: "Humidity",
-			value: humValue,
-			status,
-			unit: "%",
-			type: "humidity",
-		}),
-	];
+    return [
+        createTelemetryDevice({
+            id: "telemetry-temperature",
+            label: "Temperature",
+            value: tempValue,
+            status,
+            unit: " C",
+            type: "temperature",
+        }),
+        createTelemetryDevice({
+            id: "telemetry-humidity",
+            label: "Humidity",
+            value: humValue,
+            status,
+            unit: "%",
+            type: "humidity",
+        }),
+    ];
 };
-
 const API_PORT = process.env.REACT_APP_API_PORT || "5001";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
 const API_IOT_DATA_URL = `${API_BASE_URL}/api/iot/data`;
@@ -184,7 +87,20 @@ const canControlViaIot = (device) => {
 	const id = Number(device?.deviceId);
 	return Number.isInteger(id) && IOT_CONTROL_DEVICE_IDS.includes(id);
 };
+export const fetchDbDevices = async (roomIdParam) => {
+    const dbUrl = new URL(`${API_BASE_URL}/api/devices`);
+    if (roomIdParam) {
+        dbUrl.searchParams.append("roomId", roomIdParam);
+    }
 
+    const dbRes = await fetch(dbUrl.toString());
+    if (!dbRes.ok) {
+        throw new Error(`DB request failed with status ${dbRes.status}`);
+    }
+
+    const dbJson = await dbRes.json();
+    return Array.isArray(dbJson?.data) ? dbJson.data.map(toDbDevice) : [];
+};
 const resolveIotControlKey = (device, fallbackId) => {
 	const deviceId = Number(device?.deviceId);
 	if (Number.isInteger(deviceId) && IOT_RPC_KEY_BY_DEVICE_ID[deviceId]) {
@@ -318,7 +234,10 @@ const reconcilePendingStatuses = (devices, pendingStatusById) => {
 		pendingStatusById: nextPendingStatusById,
 	};
 };
-
+const getSetupDescription = (device) => {
+  const id = Number(device?.deviceId);
+  return Number.isInteger(id) && IOT_CONTROL_DEVICE_IDS.includes(id) ? "Set up" : "";
+};
 export function useDeviceData({ roomIdOverride } = {}) {
 	const [searchParams] = useSearchParams();
 	const roomIdParam = roomIdOverride ?? searchParams.get("roomId");
@@ -392,12 +311,17 @@ export function useDeviceData({ roomIdOverride } = {}) {
 						json?.switches,
 					);
 					const mergedDevices = mergeDevicesByDeviceId(iotDevices, dbDevices);
+					const decoratedMergedDevices = mergedDevices.map((item) => ({
+					...item,
+					setupDescription: getSetupDescription(item),
+					}));
 
 					const localDevices = applyLocalChanges(
-						mergedDevices,
-						nameOverrides,
-						hiddenDeviceIds,
+					decoratedMergedDevices,
+					nameOverrides,
+					hiddenDeviceIds,
 					);
+
 					const reconciled = reconcilePendingStatuses(
 						localDevices,
 						pendingStatusRef.current,
@@ -418,7 +342,11 @@ export function useDeviceData({ roomIdOverride } = {}) {
 							return;
 						}
 
-						const localDevices = applyLocalChanges(dbDevices, nameOverrides, hiddenDeviceIds);
+						const decoratedDbDevices = dbDevices.map((item) => ({
+							...item,
+							setupDescription: getSetupDescription(item),
+						}));
+						const localDevices = applyLocalChanges(decoratedDbDevices, nameOverrides, hiddenDeviceIds);
 						const reconciled = reconcilePendingStatuses(localDevices, pendingStatusRef.current);
 						setPayload((prev) => prev || { ok: false, data: {}, switches: [] });
 						setDeviceList(reconciled.devices);
@@ -673,17 +601,22 @@ export function useDeviceData({ roomIdOverride } = {}) {
 					return prev;
 				}
 
+				const nextDevice = {
+					id: `switch-${newSwitch.key}`,
+					name: newSwitch.name || newSwitch.key,
+					deviceName: newSwitch.name || newSwitch.key,
+					deviceId: newSwitch.deviceId ?? null,
+					deviceKey: newSwitch.key,
+					type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
+					status: "off",
+					isConnected: true,
+				};
+
 				return [
 					...prev,
 					{
-						id: `switch-${newSwitch.key}`,
-						name: newSwitch.name || newSwitch.key,
-						deviceName: newSwitch.name || newSwitch.key,
-						deviceId: newSwitch.deviceId ?? null,
-						deviceKey: newSwitch.key,
-						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
-						status: "off",
-						isConnected: true,
+						...nextDevice,
+						setupDescription: getSetupDescription(nextDevice),
 					},
 				];
 			});

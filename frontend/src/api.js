@@ -30,6 +30,7 @@ export const api = {
   createFloor: (payload) => request("/floors", { method: "POST", body: JSON.stringify(payload) }),
   deleteFloor: (id) => request(`/floors/${id}`, { method: "DELETE" }),
   getRooms: (floorId) => request(`/rooms?floorId=${floorId}`),
+  getFoodTypes: () => request("/food-types"),
   createRoom: (payload) => request("/rooms", { method: "POST", body: JSON.stringify(payload) }),
   deleteRoom: (id) => request(`/rooms/${id}`, { method: "DELETE" }),
 

@@ -13,15 +13,15 @@ async function getRooms(req, res, next) {
 
 async function postRoom(req, res, next) {
   try {
-    const { floor_id, name, description } = req.body;
+    const { floor_id, food_type_id, name, description } = req.body;
 
-    if (!floor_id || !name) {
+    if (!floor_id || !food_type_id || !name) {
       return res
         .status(400)
-        .json({ message: "floor_id and name are required" });
+        .json({ message: "floor_id, food_type_id and name are required" });
     }
 
-    const data = await roomService.createRoom({ floor_id, name, description });
+    const data = await roomService.createRoom({ floor_id, food_type_id, name, description });
     res.status(201).json(data);
   } catch (err) {
     next(err);
@@ -31,20 +31,21 @@ async function postRoom(req, res, next) {
 async function patchRoom(req, res, next) {
   try {
     const roomId = Number(req.params.id);
-    const { floor_id, name, description } = req.body;
+    const { floor_id, food_type_id, name, description } = req.body;
 
     if (!roomId) {
       return res.status(400).json({ message: "room id is required" });
     }
 
-    if (!floor_id || !name) {
+    if (!floor_id || !food_type_id || !name) {
       return res
         .status(400)
-        .json({ message: "floor_id and name are required" });
+        .json({ message: "floor_id, food_type_id and name are required" });
     }
 
     const data = await roomService.updateRoom(roomId, {
       floor_id,
+      food_type_id,
       name,
       description,
     });
