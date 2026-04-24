@@ -9,7 +9,9 @@ function rangeToHours(range) {
 
 function metricToSensorType(metric) {
   const normalized = String(metric || "temperature").toLowerCase();
-  return normalized.includes("humid") ? "HUMIDITY" : "TEMPERATURE";
+  if (normalized.includes("power")) return "POWER";
+  if (normalized.includes("humid")) return "HUMIDITY";
+  return "TEMPERATURE";
 }
 
 async function getOverview() {
@@ -40,7 +42,8 @@ async function getOverview() {
     pool.request().query(`
       SELECT TOP 1
         AVG(CASE WHEN s.type='TEMPERATURE' THEN sd.value END) AS temperature,
-        AVG(CASE WHEN s.type='HUMIDITY' THEN sd.value END) AS humidity
+        AVG(CASE WHEN s.type='HUMIDITY' THEN sd.value END) AS humidity,
+        AVG(CASE WHEN s.type='POWER' THEN sd.value END) AS power
       FROM dbo.SensorData sd
       INNER JOIN dbo.Sensors s ON s.sensor_id = sd.sensor_id
       GROUP BY sd.[timestamp]
@@ -58,6 +61,7 @@ async function getOverview() {
     latest: {
       temperature: latestRes.recordset[0]?.temperature ?? null,
       humidity: latestRes.recordset[0]?.humidity ?? null,
+      power: latestRes.recordset[0]?.power ?? null,
     },
   };
 }

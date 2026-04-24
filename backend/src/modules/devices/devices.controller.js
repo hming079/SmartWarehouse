@@ -243,4 +243,5 @@ module.exports = {
   sendDeviceCommand,
   searchDevicesbyRooms,
   searchDevicesbyType,
+  getDeviceLogs,
 };

@@ -142,6 +142,7 @@ export function useDeviceData() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 	const [payload, setPayload] = useState(null);
+	const payloadRef = useRef(payload);
 	const [nameOverrides, setNameOverrides] = useState(() =>
 		readStoredValue(DEVICE_NAME_OVERRIDES_KEY, {}),
 	);
@@ -159,6 +160,10 @@ export function useDeviceData() {
 	useEffect(() => {
 		hiddenDeviceIdsRef.current = hiddenDeviceIds;
 	}, [hiddenDeviceIds]);
+
+	useEffect(() => {
+		payloadRef.current = payload;
+	}, [payload]);
 
 	useEffect(() => {
 		writeStoredValue(DEVICE_NAME_OVERRIDES_KEY, nameOverrides);
@@ -207,8 +212,9 @@ export function useDeviceData() {
 					const nextPayload = parsed.payload;
 					
 					// Log device state changes for debugging
-					if (payload?.switches?.length > 0 && nextPayload?.switches?.length > 0) {
-						const oldSwitches = new Map(payload.switches.map(s => [s.key, s.status]));
+					const currentPayload = payloadRef.current;
+					if (currentPayload?.switches?.length > 0 && nextPayload?.switches?.length > 0) {
+						const oldSwitches = new Map(currentPayload.switches.map(s => [s.key, s.status]));
 						const newSwitches = new Map(nextPayload.switches.map(s => [s.key, s.status]));
 						
 						newSwitches.forEach((newStatus, key) => {
@@ -337,7 +343,7 @@ export function useDeviceData() {
 		}
 	};
 
-	const handleModifyDevice = (id) => {
+	const handleModifyDevice = async (id) => {
 		const device = deviceList.find((d) => d.id === id);
 		if (!device || typeof window === "undefined") return;
 
@@ -347,6 +353,22 @@ export function useDeviceData() {
 		const trimmedName = nextName.trim();
 		if (!trimmedName) return;
 
+		if (device.deviceId) {
+			try {
+				const response = await fetch(`${API_BASE_URL}/api/devices/${device.deviceId}`, {
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ name: trimmedName }),
+				});
+				if (!response.ok) {
+					throw new Error("Failed to update device");
+				}
+			} catch (err) {
+				setDevicesError(`Lỗi cập nhật tên thiết bị: ${err.message}`);
+				return;
+			}
+		}
+
 		setNameOverrides((prev) => ({
 			...prev,
 			[id]: trimmedName,
@@ -354,12 +376,26 @@ export function useDeviceData() {
 		setDeviceList((prev) => prev.map((item) => (item.id === id ? { ...item, name: trimmedName } : item)));
 	};
 
-	const handleDeleteDevice = (id) => {
+	const handleDeleteDevice = async (id) => {
 		const device = deviceList.find((d) => d.id === id);
 		if (!device || typeof window === "undefined") return;
 
 		const confirmed = window.confirm(`Delete ${device.name}?`);
 		if (!confirmed) return;
+
+		if (device.deviceId) {
+			try {
+				const response = await fetch(`${API_BASE_URL}/api/devices/${device.deviceId}`, {
+					method: "DELETE",
+				});
+				if (!response.ok) {
+					throw new Error("Failed to delete device");
+				}
+			} catch (err) {
+				setDevicesError(`Lỗi xóa thiết bị: ${err.message}`);
+				return;
+			}
+		}
 
 		setHiddenDeviceIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
 		setDeviceList((prev) => prev.filter((item) => item.id !== id));

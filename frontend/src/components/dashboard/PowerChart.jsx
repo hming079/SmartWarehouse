@@ -10,7 +10,15 @@ import {
 import Card from "../ui/Card";
 import { powerChartData } from "../../constants/mockData";
 
-const PowerChart = () => {
+const PowerChart = ({ data }) => {
+  const chartData = data && data.length > 0
+    ? data.map(item => ({
+        name: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        line1: item.value,
+        line2: item.value * 0.8
+      }))
+    : powerChartData;
+
   return (
     <Card className="flex flex-col overflow-hidden bg-[#fcfafd] p-6 lg:p-8 border-none h-[400px]">
       <div className="flex items-center justify-between mb-8">
@@ -36,7 +44,7 @@ const PowerChart = () => {
 
       <div className="flex-1 min-h-0 relative -ml-4 -mr-4">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={powerChartData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={true} stroke="#f0f0f0" />
             <XAxis
               dataKey="name"
