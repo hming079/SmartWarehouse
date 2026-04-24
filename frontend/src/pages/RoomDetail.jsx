@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useState } from "react";
 import { Bot, CalendarClock, ChevronLeft, ClipboardList, Droplets, Power, RefreshCw, Thermometer, Trash2, TriangleAlert } from "lucide-react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useDeviceData } from "../hooks/newdeviceHook";
+import { useDeviceData } from "../hooks/roomDetail/deviceRoomDetail";
 import { api } from "../api";
 import {
   useRoomDetail,
@@ -14,7 +14,7 @@ import {
   normalizeBoolean,
   toNumberOrNull,
   isTelemetryDevice,
-} from "../hooks/useRoomDetail";
+} from "../hooks/roomDetail/useRoomDetail";
 import Modal from "../components/ui/Modal";
 
 const RANGE_OPTIONS = [
