@@ -42,6 +42,18 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
+function getFoodTypeIcon(foodTypeName) {
+  const normalized = String(foodTypeName || "").toLowerCase();
+  if (normalized.includes("thịt") || normalized.includes("thit") || normalized.includes("bò") || normalized.includes("bo") || normalized.includes("gà") || normalized.includes("ga")) return "🥩";
+  if (normalized.includes("rau")) return "🥕";
+  if (normalized.includes("hải sản") || normalized.includes("hai san") || normalized.includes("cá") || normalized.includes("ca")) return "🐟";
+  if (normalized.includes("sữa") || normalized.includes("sua")) return "🥛";
+  if (normalized.includes("trái cây") || normalized.includes("trai cay")) return "🍎";
+  if (normalized.includes("nước") || normalized.includes("nuoc") || normalized.includes("đồ uống") || normalized.includes("do uong")) return "🥤";
+  if (normalized.includes("khô") || normalized.includes("kho")) return "📦";
+  return "🍽️";
+}
+
 function TimeseriesChart({ points, metric }) {
   const width = 720;
   const height = 240;
@@ -172,11 +184,15 @@ const RoomDetail = () => {
   const roomMatchesSelection = stateRoom && selectedRoomId && Number(stateRoom.room_id || stateRoom.id) === selectedRoomId;
   const roomTitle = roomMatchesSelection ? stateRoom.name : `Phong ${selectedRoomId || roomId}`;
   const roomDescription = roomMatchesSelection ? stateRoom.description : "Theo doi trang thai nhiet do, do am va thiet bi trong phong.";
+  const roomFoodTypeName = roomMatchesSelection ? stateRoom.food_type_name : "";
+  const roomFoodTypeIcon = getFoodTypeIcon(roomFoodTypeName);
   const selectedAreaId = searchParams.get("areaId") || "";
   const selectedFloorId = searchParams.get("floorId") || "";
   const [metric, setMetric] = useState("temperature");
   const [range, setRange] = useState("24h");
   const [selectedDeviceType, setSelectedDeviceType] = useState("fan");
+  const [deviceFilterText, setDeviceFilterText] = useState("");
+  const [deviceFilterStatus, setDeviceFilterStatus] = useState("all");
   const [timeseries, setTimeseries] = useState([]);
   const [timeseriesLoading, setTimeseriesLoading] = useState(false);
   const [timeseriesError, setTimeseriesError] = useState("");
@@ -188,6 +204,25 @@ const RoomDetail = () => {
     () => deviceList.filter((device) => !isTelemetryDevice(device)),
     [deviceList],
   );
+
+  const filteredControlDevices = useMemo(() => {
+    const normalizedText = deviceFilterText.trim().toLowerCase();
+
+    return controlDevices.filter((device) => {
+      const status = String(device.status || "").toLowerCase();
+      const name = String(device.name || "").toLowerCase();
+      const identifier = String(device.deviceId ?? device.id ?? "").toLowerCase();
+
+      const matchesText = !normalizedText
+        || name.includes(normalizedText)
+        || identifier.includes(normalizedText)
+        || status.includes(normalizedText);
+
+      const matchesStatus = deviceFilterStatus === "all" || status === deviceFilterStatus;
+
+      return matchesText && matchesStatus;
+    });
+  }, [controlDevices, deviceFilterText, deviceFilterStatus]);
 
   const activeCount = controlDevices.filter((item) => String(item.status || "").toLowerCase() === "on").length;
   const totalCount = controlDevices.length;
@@ -351,6 +386,13 @@ const RoomDetail = () => {
         <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoat dong</span>
       </div>
 
+      {roomFoodTypeName ? (
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-sm text-cyan-100">
+          <span className="text-base" aria-hidden="true">{roomFoodTypeIcon}</span>
+          <span>Loại thực phẩm: {roomFoodTypeName}</span>
+        </div>
+      ) : null}
+
       {(error || devicesError) && (
         <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error || devicesError}</div>
       )}
@@ -457,8 +499,25 @@ const RoomDetail = () => {
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs uppercase tracking-wider text-[#7f96c0]">Thiet bi dieu khien ({controlDevices.length})</p>
+            <p className="text-xs uppercase tracking-wider text-[#7f96c0]">
+              Thiet bi dieu khien ({filteredControlDevices.length}/{controlDevices.length})
+            </p>
             <div className="flex items-center gap-2">
+              <input
+                value={deviceFilterText}
+                onChange={(event) => setDeviceFilterText(event.target.value)}
+                placeholder="Filter by name/id/status"
+                className="w-44 rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] placeholder:text-[#9eb6df] outline-none"
+              />
+              <select
+                value={deviceFilterStatus}
+                onChange={(event) => setDeviceFilterStatus(event.target.value)}
+                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+              >
+                <option value="all">All status</option>
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
               <select
                 value={selectedDeviceType}
                 onChange={(event) => setSelectedDeviceType(event.target.value)}
@@ -481,11 +540,19 @@ const RoomDetail = () => {
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {controlDevices.length === 0 && <p className="text-sm text-[#8aa3ce]">Chua co thiet bi dieu khien.</p>}
-            {controlDevices.map((device) => (
+            {controlDevices.length > 0 && filteredControlDevices.length === 0 && (
+              <p className="text-sm text-[#8aa3ce]">Khong tim thay thiet bi phu hop bo loc.</p>
+            )}
+            {filteredControlDevices.map((device) => (
               <div key={device.id} className="flex items-center justify-between rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-2.5">
                 <div className="min-w-0 pr-2">
                   <p className="truncate text-sm font-medium text-white">{device.name + "_" + device.deviceId}</p>
                   <p className="text-xs text-[#90a8d4]">{getStatusText(device.status)}</p>
+                  {device.setupDescription ? (
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                      {device.setupDescription}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <button

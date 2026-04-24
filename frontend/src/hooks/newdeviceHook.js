@@ -318,7 +318,10 @@ const reconcilePendingStatuses = (devices, pendingStatusById) => {
 		pendingStatusById: nextPendingStatusById,
 	};
 };
-
+const getSetupDescription = (device) => {
+  const id = Number(device?.deviceId);
+  return Number.isInteger(id) && IOT_CONTROL_DEVICE_IDS.includes(id) ? "Set up" : "";
+};
 export function useDeviceData({ roomIdOverride } = {}) {
 	const [searchParams] = useSearchParams();
 	const roomIdParam = roomIdOverride ?? searchParams.get("roomId");
@@ -392,12 +395,17 @@ export function useDeviceData({ roomIdOverride } = {}) {
 						json?.switches,
 					);
 					const mergedDevices = mergeDevicesByDeviceId(iotDevices, dbDevices);
+					const decoratedMergedDevices = mergedDevices.map((item) => ({
+					...item,
+					setupDescription: getSetupDescription(item),
+					}));
 
 					const localDevices = applyLocalChanges(
-						mergedDevices,
-						nameOverrides,
-						hiddenDeviceIds,
+					decoratedMergedDevices,
+					nameOverrides,
+					hiddenDeviceIds,
 					);
+
 					const reconciled = reconcilePendingStatuses(
 						localDevices,
 						pendingStatusRef.current,
@@ -418,7 +426,11 @@ export function useDeviceData({ roomIdOverride } = {}) {
 							return;
 						}
 
-						const localDevices = applyLocalChanges(dbDevices, nameOverrides, hiddenDeviceIds);
+						const decoratedDbDevices = dbDevices.map((item) => ({
+							...item,
+							setupDescription: getSetupDescription(item),
+						}));
+						const localDevices = applyLocalChanges(decoratedDbDevices, nameOverrides, hiddenDeviceIds);
 						const reconciled = reconcilePendingStatuses(localDevices, pendingStatusRef.current);
 						setPayload((prev) => prev || { ok: false, data: {}, switches: [] });
 						setDeviceList(reconciled.devices);
@@ -673,17 +685,22 @@ export function useDeviceData({ roomIdOverride } = {}) {
 					return prev;
 				}
 
+				const nextDevice = {
+					id: `switch-${newSwitch.key}`,
+					name: newSwitch.name || newSwitch.key,
+					deviceName: newSwitch.name || newSwitch.key,
+					deviceId: newSwitch.deviceId ?? null,
+					deviceKey: newSwitch.key,
+					type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
+					status: "off",
+					isConnected: true,
+				};
+
 				return [
 					...prev,
 					{
-						id: `switch-${newSwitch.key}`,
-						name: newSwitch.name || newSwitch.key,
-						deviceName: newSwitch.name || newSwitch.key,
-						deviceId: newSwitch.deviceId ?? null,
-						deviceKey: newSwitch.key,
-						type: toUiType(newSwitch.type, newSwitch.name || newSwitch.key),
-						status: "off",
-						isConnected: true,
+						...nextDevice,
+						setupDescription: getSetupDescription(nextDevice),
 					},
 				];
 			});
