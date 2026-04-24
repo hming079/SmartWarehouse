@@ -11,4 +11,8 @@ router.patch("/:id", devicesController.patchDevice);
 router.delete("/:id", devicesController.removeDevice);
 router.patch("/:id/toggle", devicesController.patchToggleDevice);
 
+// Expose search endpoints
+router.get("/search/by-room", devicesController.searchDevicesbyRooms);
+router.get("/search/by-type", devicesController.searchDevicesbyType);
+
 module.exports = router;

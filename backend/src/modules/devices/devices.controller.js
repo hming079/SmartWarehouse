@@ -1,9 +1,9 @@
+const actionLogger = require("../action-logger/action-logger.service");
 const devicesService = require("./devices.service");
 
 async function getDevices(req, res, next) {
   try {
-    const rawIsInstalled =
-      req.query.isInstalled ?? req.query.is_installed;
+    const rawIsInstalled = req.query.isInstalled ?? req.query.is_installed;
 
     let isInstalled = null;
     if (rawIsInstalled !== undefined && rawIsInstalled !== null) {
@@ -58,6 +58,14 @@ async function getDevices(req, res, next) {
 async function postDevice(req, res, next) {
   try {
     const data = await devicesService.createDevice(req.body || {});
+    await actionLogger.logAction({
+      code: "CREATE_DEVICE",
+      name: "Create Device",
+      targetType: "DEVICE",
+      targetId: data.device_id,
+      newValue: req.body || {},
+      actorUserId: req.user?.user_id,
+    });
     res.status(201).json({ ok: true, data });
   } catch (error) {
     next(error);
@@ -116,6 +124,14 @@ async function patchDevice(req, res, next) {
     }
 
     const data = await devicesService.updateDevice(deviceId, req.body || {});
+    await actionLogger.logAction({
+      code: "UPDATE_DEVICE",
+      name: "Update Device",
+      targetType: "DEVICE",
+      targetId: deviceId,
+      newValue: req.body || {},
+      actorUserId: req.user?.user_id,
+    });
     res.json({ ok: true, data });
   } catch (error) {
     next(error);
@@ -132,6 +148,13 @@ async function removeDevice(req, res, next) {
     }
 
     const data = await devicesService.deleteDevice(deviceId);
+    await actionLogger.logAction({
+      code: "DELETE_DEVICE",
+      name: "Delete Device",
+      targetType: "DEVICE",
+      targetId: deviceId,
+      actorUserId: req.user?.user_id,
+    });
     res.json({ ok: true, data });
   } catch (error) {
     next(error);

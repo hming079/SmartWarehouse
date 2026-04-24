@@ -280,10 +280,16 @@ async function toggleRule(ruleId) {
 async function deleteRule(ruleId) {
   await ensureTable();
   const pool = await getPool();
-  await pool
-    .request()
-    .input("rule_id", sql.Int, ruleId)
-    .query("DELETE FROM dbo.AutomationRules WHERE rule_id = @rule_id");
+  const result = await pool.request().input("rule_id", sql.Int, ruleId).query(`
+      DELETE FROM dbo.AutomationRules WHERE rule_id = @rule_id;
+      SELECT @@ROWCOUNT AS affected;
+    `);
+  const affected = Number(result.recordset?.[0]?.affected || 0);
+  if (affected === 0) {
+    const err = new Error("Rule not found");
+    err.status = 404;
+    throw err;
+  }
 }
 
 module.exports = {

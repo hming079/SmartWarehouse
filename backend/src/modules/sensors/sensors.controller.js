@@ -1,3 +1,4 @@
+const actionLogger = require("../action-logger/action-logger.service");
 const sensorsService = require("./sensors.service");
 
 async function getSensors(req, res, next) {
@@ -57,6 +58,14 @@ async function updateSensor(req, res, next) {
     if (!data) {
       return res.status(404).json({ message: "Sensor not found" });
     }
+    await actionLogger.logAction({
+      code: "UPDATE_SENSOR",
+      name: "Update Sensor",
+      targetType: "SENSOR",
+      targetId: sensorId,
+      newValue: req.body || {},
+      actorUserId: req.user?.user_id,
+    });
     res.json({ ok: true, data });
   } catch (error) {
     next(error);
@@ -67,8 +76,7 @@ async function postSensor(req, res, next) {
   try {
     const data = await sensorsService.createSensor(req.body || {});
     res.status(201).json({ ok: true, data });
-  }
-  catch (error) {
+  } catch (error) {
     next(error);
   }
 }
