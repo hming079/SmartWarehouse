@@ -1,5 +1,11 @@
 const { sql, getPool } = require("../../../db");
 
+function createHttpError(message, status = 500) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
 async function listAuditLogs({
   page = 1,
   pageSize = 20,
@@ -40,13 +46,13 @@ async function listAuditLogs({
     const actionLike = `%${action}%`;
     countRequest.input("action", sql.NVarChar(255), actionLike);
     dataRequest.input("action", sql.NVarChar(255), actionLike);
-    whereClause += " AND al.action_type LIKE @action";
+    whereClause += " AND (a.code LIKE @action OR a.name LIKE @action)";
   }
   if (roomId) {
     const room = Number(roomId);
     countRequest.input("roomId", sql.Int, room);
     dataRequest.input("roomId", sql.Int, room);
-    whereClause += " AND s.room_id = @roomId";
+    whereClause += " AND al.room_id = @roomId";
   }
 
   dataRequest
@@ -56,28 +62,37 @@ async function listAuditLogs({
   const countResult = await countRequest.query(`
     SELECT COUNT(*) AS total
     FROM dbo.ActionLog al
-    LEFT JOIN dbo.Users u ON u.user_id = al.user_id
-    LEFT JOIN dbo.Sensors s ON s.sensor_id = al.sensor_id
+    LEFT JOIN dbo.Actions a ON a.action_id = al.action_id
+    LEFT JOIN dbo.Users u ON u.user_id = al.actor_user_id
     ${whereClause}
   `);
 
   const dataResult = await dataRequest.query(`
     SELECT
-      al.action_id AS id,
-      al.action_type AS action,
+      al.action_log_id AS id,
+      a.code AS action_code,
+      a.name AS action_name,
+      ISNULL(a.code, a.name) AS action,
       al.old_value,
       al.new_value,
       al.[timestamp],
-      al.user_id,
-      al.sensor_id,
+      al.status,
+      al.actor_user_id AS user_id,
+      CASE WHEN al.target_type = 'SENSOR' THEN al.target_id ELSE NULL END AS sensor_id,
+      CASE WHEN al.target_type = 'DEVICE' THEN al.target_id ELSE NULL END AS device_id,
       ISNULL(NULLIF(u.full_name, ''), u.username) AS actor,
-      s.room_id,
+      al.room_id,
       r.name AS room_name,
-      s.name AS sensor_name
+      s.name AS sensor_name,
+      d.device_name AS device_name,
+      al.target_type,
+      al.target_id
     FROM dbo.ActionLog al
-    LEFT JOIN dbo.Users u ON u.user_id = al.user_id
-    LEFT JOIN dbo.Sensors s ON s.sensor_id = al.sensor_id
-    LEFT JOIN dbo.Rooms r ON r.room_id = s.room_id
+    LEFT JOIN dbo.Actions a ON a.action_id = al.action_id
+    LEFT JOIN dbo.Users u ON u.user_id = al.actor_user_id
+    LEFT JOIN dbo.Rooms r ON r.room_id = al.room_id
+    LEFT JOIN dbo.Sensors s ON al.target_type = 'SENSOR' AND s.sensor_id = al.target_id
+    LEFT JOIN dbo.Devices d ON al.target_type = 'DEVICE' AND d.device_id = al.target_id
     ${whereClause}
     ORDER BY al.[timestamp] DESC
     OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY
@@ -100,35 +115,39 @@ async function listAuditLogs({
 
 async function getAuditLogById(logId) {
   const pool = await getPool();
-  const result = await pool.request().input("id", sql.Int, Number(logId))
+  const result = await pool.request().input("id", sql.BigInt, Number(logId))
     .query(`
     SELECT TOP 1
-      al.action_id AS id,
-      al.action_type AS action,
+      al.action_log_id AS id,
+      a.code AS action_code,
+      a.name AS action_name,
+      ISNULL(a.code, a.name) AS action,
       al.old_value,
       al.new_value,
       al.[timestamp],
-      al.user_id,
-      al.sensor_id,
+      al.status,
+      al.actor_user_id AS user_id,
+      CASE WHEN al.target_type = 'SENSOR' THEN al.target_id ELSE NULL END AS sensor_id,
+      CASE WHEN al.target_type = 'DEVICE' THEN al.target_id ELSE NULL END AS device_id,
       ISNULL(NULLIF(u.full_name, ''), u.username) AS actor,
-      s.room_id,
+      al.room_id,
       r.name AS room_name,
-      s.name AS sensor_name
+      s.name AS sensor_name,
+      d.device_name AS device_name,
+      al.target_type,
+      al.target_id
     FROM dbo.ActionLog al
-    LEFT JOIN dbo.Users u ON u.user_id = al.user_id
-    LEFT JOIN dbo.Sensors s ON s.sensor_id = al.sensor_id
-    LEFT JOIN dbo.Rooms r ON r.room_id = s.room_id
-    WHERE al.action_id = @id
+    LEFT JOIN dbo.Actions a ON a.action_id = al.action_id
+    LEFT JOIN dbo.Users u ON u.user_id = al.actor_user_id
+    LEFT JOIN dbo.Rooms r ON r.room_id = al.room_id
+    LEFT JOIN dbo.Sensors s ON al.target_type = 'SENSOR' AND s.sensor_id = al.target_id
+    LEFT JOIN dbo.Devices d ON al.target_type = 'DEVICE' AND d.device_id = al.target_id
+    WHERE al.action_log_id = @id
   `);
 
   const row = result.recordset[0];
   if (!row) {
-    return {
-      id: Number(logId),
-      action: "",
-      actor: "",
-      payload: {},
-    };
+    throw createHttpError("Audit log not found", 404);
   }
 
   return {
