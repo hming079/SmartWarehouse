@@ -290,7 +290,3 @@ EXEC sp_addextendedproperty
   @level1type = N'Table',  @level1name = N'Sensors',
   @level2type = N'Column', @level2name = N'status';
 GO
-
-
- * * a + b c - d * e f
- a*(b+c)*(d-e*f)
