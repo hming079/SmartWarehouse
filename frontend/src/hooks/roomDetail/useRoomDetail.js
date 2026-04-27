@@ -28,6 +28,8 @@ export const createInitialAutomationForm = () => ({
   action_name: "Bật máy lạnh",
   alert_level: "Medium",
   food_type: "General",
+  actionDeviceIds: [],
+  actionDeviceType: "fan",
 });
 
 // Utility functions
@@ -153,7 +155,21 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       setMetaLoading(false);
     }
   };
-
+  // Add automationEditingId state
+  const [automationEditingId, setAutomationEditingId] = useState(null);
+  // Open edit automation modal
+  const openEditAutomationModal = (rule) => {
+    setAutomationEditingId(rule.rule_id);
+    setAutomationForm({
+      ...rule,
+      actionDeviceIds: rule.action_device_ids ? String(rule.action_device_ids).split(",") : [],
+      actionDeviceType: rule.action_device_types || "fan",
+      actionType: rule.action_name ? "action" : "alert",
+      actionOnOff: rule.action_name && rule.action_name.toLowerCase().includes("tắt") ? "off" : "on",
+    });
+    setAutomationFormError("");
+    setIsAutomationModalOpen(true);
+  };
   // Load metadata on mount/selectedRoomId change
   useEffect(() => {
     let cancelled = false;
@@ -240,9 +256,11 @@ export const useRoomDetail = (selectedRoomId, payload) => {
     setIsAutomationModalOpen(true);
   };
 
-  const handleSubmitAutomation = async (roomTitle) => {
-    const name = String(automationForm.name || "").trim();
-    const thresholdValue = Number(automationForm.threshold_value);
+  // Add editMode param
+  const handleSubmitAutomation = async (roomTitle, payloadOverride, editMode = false) => {
+    const form = payloadOverride || automationForm;
+    const name = String(form.name || "").trim();
+    const thresholdValue = Number(form.threshold_value);
     if (!name || !Number.isFinite(thresholdValue)) {
       setAutomationFormError("Nhap ten rule va nguong hop le");
       return;
@@ -252,28 +270,57 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       setBusyKey("automation-create");
       setAutomationFormError("");
       setMetaError("");
-      await api.createAutomationRule({
-        name,
-        apply_to: roomTitle,
-        food_type: automationForm.food_type,
-        metric: automationForm.metric,
-        compare_op: automationForm.compare_op,
-        threshold_value: thresholdValue,
-        action_name: automationForm.action_name,
-        alert_level: automationForm.alert_level,
-        is_active: true,
-      });
+      if (editMode && form.rule_id) {
+        // Update existing rule
+        await api.updateAutomationRule(form.rule_id, {
+          name,
+          apply_to: roomTitle,
+          food_type: form.food_type,
+          metric: form.metric,
+          compare_op: form.compare_op,
+          threshold_value: thresholdValue,
+          action_name: form.action_name,
+          action_device_ids: (form.actionDeviceIds || []).join(","),
+          action_device_types: form.actionDeviceType ? form.actionDeviceType : "",
+          alert_level: form.alert_level,
+          is_active: true,
+        });
+      } else {
+        // Create new rule
+        await api.createAutomationRule({
+          name,
+          apply_to: roomTitle,
+          food_type: form.food_type,
+          metric: form.metric,
+          compare_op: form.compare_op,
+          threshold_value: thresholdValue,
+          action_name: form.action_name,
+          action_device_ids: (form.actionDeviceIds || []).join(","),
+          action_device_types: form.actionDeviceType ? form.actionDeviceType : "",
+          alert_level: form.alert_level,
+          is_active: true,
+        });
+      }
 
       setQuickRuleName("");
       setQuickRuleThreshold("");
       setIsAutomationModalOpen(false);
+      setAutomationEditingId(null);
       setAutomationForm(createInitialAutomationForm());
       await reloadRoomMeta();
     } catch (err) {
-      setAutomationFormError(err.message || "Khong the tao automation");
+      setAutomationFormError(err.message || (editMode ? "Khong the sua automation" : "Khong the tao automation"));
     } finally {
       setBusyKey("");
     }
+    // Export edit helpers
+    return {
+      ... // existing exports ...
+      openEditAutomationModal,
+      automationEditingId,
+      setAutomationEditingId,
+      handleSubmitAutomation,
+    };
   };
 
   // Schedule handlers
@@ -460,6 +507,9 @@ export const useRoomDetail = (selectedRoomId, payload) => {
     handleCreateQuickAutomation,
     openAutomationModal,
     handleSubmitAutomation,
+    openEditAutomationModal,
+    automationEditingId,
+    setAutomationEditingId,
 
     // Schedule
     schedulesItems,

@@ -14,13 +14,13 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 const menuItems = [
   { label: "Home", path: "/home", icon: Home },
   { label: "Area", path: "/area", icon: MapPinned },
-  { label: "Devices", path: "/devices", icon: Grid3X3, useDeviceView: true },
+  // { label: "Devices", path: "/devices", icon: Grid3X3, useDeviceView: true },
   { label: "Automation", path: "/automation", icon: SlidersHorizontal },
-  { label: "Alerts", path: "/alerts", icon: Bell },
+  // { label: "Alerts", path: "/alerts", icon: Bell },
   { label: "Schedules", path: "/schedules", icon: CalendarClock },
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Audit logs", path: "/audit-logs", icon: ClipboardList },
-  { label: "Settings", path: "/settings", icon: Cog },
+  // { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+  // { label: "Audit logs", path: "/audit-logs", icon: ClipboardList },
+  // { label: "Settings", path: "/settings", icon: Cog },
 ];
 
 const Sidebar = () => {

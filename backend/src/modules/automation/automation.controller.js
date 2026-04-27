@@ -1,3 +1,43 @@
+// PATCH /automation/:id - update automation rule
+async function patchUpdateRule(req, res, next) {
+  try {
+    const ruleId = Number(req.params.id);
+    if (!ruleId) {
+      return res.status(400).json({ message: "rule id is required" });
+    }
+    const {
+      name,
+      apply_to,
+      food_type,
+      metric,
+      compare_op,
+      threshold_value,
+      action_name,
+      action_device_ids,
+      action_device_types,
+      alert_level,
+    } = req.body;
+
+    if (
+      !name ||
+      !apply_to ||
+      !food_type ||
+      !metric ||
+      !compare_op ||
+      threshold_value === undefined ||
+      threshold_value === null ||
+      (!action_name && !alert_level) ||
+      !alert_level
+    ) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const data = await automationService.updateRule(ruleId, req.body);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
 const automationService = require("./automation.service");
 
 async function getRules(req, res, next) {
@@ -19,6 +59,8 @@ async function postRule(req, res, next) {
       compare_op,
       threshold_value,
       action_name,
+      action_device_ids,
+      action_device_types,
       alert_level,
     } = req.body;
 
@@ -30,7 +72,7 @@ async function postRule(req, res, next) {
       !compare_op ||
       threshold_value === undefined ||
       threshold_value === null ||
-      !action_name ||
+      (!action_name && !alert_level) || // allow action_name to be empty if alert_level is set
       !alert_level
     ) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -80,4 +122,5 @@ module.exports = {
   postRule,
   patchToggleRule,
   removeRule,
+  patchUpdateRule,
 };
