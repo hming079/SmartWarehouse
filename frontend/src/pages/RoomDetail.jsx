@@ -142,6 +142,9 @@ const RoomDetail = () => {
     handleCreateQuickAutomation,
     openAutomationModal,
     handleSubmitAutomation,
+    openEditAutomationModal,
+    automationEditingId,
+    setAutomationEditingId,
     schedulesItems,
     scheduleForm,
     scheduleFormError,
@@ -262,26 +265,22 @@ const RoomDetail = () => {
   }, [payload]);
 
   const roomAwareAutomation = useMemo(() => {
-    const zoneName = String(stateZone?.name || "").toLowerCase();
-    const roomName = String(roomTitle || "").toLowerCase();
+  const zoneName = String(stateZone?.name || "").trim().toLowerCase();
+  const roomName = String(stateRoom?.name || roomTitle || "").trim().toLowerCase();
 
-    const normalized = automationItems.map((rule) => ({
+  return automationItems
+    .map((rule) => ({
       ...rule,
       is_active: normalizeBoolean(rule.is_active),
       apply_to: String(rule.apply_to || ""),
       displayCondition: `${rule.metric || ""} ${rule.compare_op || ""} ${rule.threshold_value ?? ""}`.trim(),
-    }));
-
-    const scoped = normalized.filter((rule) => {
-      const target = String(rule.apply_to || "").toLowerCase();
+    }))
+    .filter((rule) => {
+      const target = String(rule.apply_to || "").trim().toLowerCase();
       if (!target) return false;
-      if (zoneName && target.includes(zoneName)) return true;
-      if (roomName && target.includes(roomName)) return true;
-      return false;
+      return target.includes(zoneName) || target.includes(roomName);
     });
-
-    return scoped;
-  }, [automationItems, stateZone?.name, roomTitle]);
+}, [automationItems, stateZone?.name, stateRoom?.name, roomTitle]);
 
   const activeAutomationCount = roomAwareAutomation.filter((item) => item.is_active).length;
 
@@ -618,6 +617,12 @@ const RoomDetail = () => {
                 <p className="mt-1 text-xs text-[#8ea9d8]">Action: {rule.action_name || "--"}</p>
                 <div className="mt-2 flex gap-2">
                   <button
+                    onClick={() => openEditAutomationModal(rule)}
+                    className="rounded bg-white/10 px-2 py-1 text-xs font-semibold text-[#c5d6f2] hover:bg-white/20"
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => handleToggleAutomation(rule.rule_id)}
                     disabled={busyKey === `automation-toggle-${rule.rule_id}`}
                     className="rounded bg-cyan-500/20 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
@@ -775,7 +780,7 @@ const RoomDetail = () => {
         </div>
       </div>
 
-      <Modal isOpen={isAutomationModalOpen} onClose={() => setIsAutomationModalOpen(false)}>
+      <Modal isOpen={isAutomationModalOpen} onClose={() => { setIsAutomationModalOpen(false); setAutomationEditingId(null); }}>
         <div className="space-y-4">
           <div>
             <h3 className="text-xl font-bold text-[#24124d]">Create automation rule</h3>
@@ -855,14 +860,91 @@ const RoomDetail = () => {
             </label>
 
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Action name
-              <input
-                value={automationForm.action_name}
-                onChange={(event) => setAutomationForm((prev) => ({ ...prev, action_name: event.target.value }))}
+              Action type
+              <select
+                value={automationForm.actionType || (automationForm.action_name ? "action" : "alert")}
+                onChange={event => {
+                  const value = event.target.value;
+                  setAutomationForm(prev => ({
+                    ...prev,
+                    actionType: value,
+                    action_name: value === "alert" ? "" : prev.action_name,
+                  }));
+                }}
                 className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
-                placeholder="Bật máy lạnh"
-              />
+              >
+                <option value="action">Kích hoạt thiết bị</option>
+                <option value="alert">Chỉ cảnh báo</option>
+              </select>
             </label>
+
+            {automationForm.actionType !== "alert" && (
+              <>
+                <label className="text-sm font-medium text-gray-700">
+                  Action
+                  <select
+                    value={automationForm.actionOnOff || "on"}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setAutomationForm(prev => ({
+                        ...prev,
+                        actionOnOff: value,
+                        action_name: `${value === "on" ? "Bật" : "Tắt"} ${prev.actionDeviceType ? prev.actionDeviceType : ""} ${prev.actionDeviceId ? `#${prev.actionDeviceId}` : ""}`.trim(),
+                      }));
+                    }}
+                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  >
+                    <option value="on">Bật (Turn on)</option>
+                    <option value="off">Tắt (Turn off)</option>
+                  </select>
+                </label>
+
+                <label className="text-sm font-medium text-gray-700">
+                  Device type
+                  <select
+                    value={automationForm.actionDeviceType || "fan"}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setAutomationForm(prev => ({
+                        ...prev,
+                        actionDeviceType: value,
+                        actionDeviceId: "", // reset device selection when type changes
+                        action_name: `${prev.actionOnOff === "off" ? "Tắt" : "Bật"} ${value}`.trim(),
+                      }));
+                    }}
+                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  >
+                    {DEVICE_TYPE_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="text-sm font-medium text-gray-700">
+                  Devices
+                  <select
+                    multiple
+                    value={automationForm.actionDeviceIds || []}
+                    onChange={e => {
+                      const selected = Array.from(e.target.selectedOptions).map(opt => opt.value);
+                      setAutomationForm(prev => ({
+                        ...prev,
+                        actionDeviceIds: selected,
+                        action_name: `${prev.actionOnOff === "off" ? "Tắt" : "Bật"} ${prev.actionDeviceType ? prev.actionDeviceType : ""} ${selected.map(id => `#${id}`).join(",")}`.trim(),
+                      }));
+                    }}
+                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400 h-28"
+                  >
+                    {controlDevices
+                      .filter(d => (automationForm.actionDeviceType ? d.type === automationForm.actionDeviceType : true))
+                      .map(device => (
+                        <option key={device.id} value={device.id}>{device.name} (ID: {device.id})</option>
+                      ))}
+                  </select>
+                  <span className="block text-xs text-gray-500 mt-1">(Giữ Ctrl/Command để chọn nhiều thiết bị)</span>
+                </label>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-3">
@@ -875,11 +957,30 @@ const RoomDetail = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleSubmitAutomation(roomTitle)}
+              onClick={() => {
+                let payload = { ...automationForm };
+                if (automationForm.actionType === "alert") {
+                  payload = { ...payload, action_name: "", actionDeviceIds: [], actionDeviceTypes: [] };
+                } else {
+                  payload = {
+                    ...payload,
+                    action_name: automationForm.action_name,
+                    action_device_ids: (automationForm.actionDeviceIds || []).join(","),
+                    action_device_types: automationForm.actionDeviceType ? automationForm.actionDeviceType : "",
+                  };
+                }
+                if (automationEditingId) {
+                  // Edit mode
+                  payload.rule_id = automationEditingId;
+                  handleSubmitAutomation(roomTitle, payload, true); // true = edit
+                } else {
+                  handleSubmitAutomation(roomTitle, payload);
+                }
+              }}
               disabled={busyKey === "automation-create"}
               className="rounded-xl bg-green-500 px-5 py-2 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {busyKey === "automation-create" ? "Saving..." : "Save"}
+              {busyKey === "automation-create" ? (automationEditingId ? "Saving..." : "Saving...") : (automationEditingId ? "Save changes" : "Save")}
             </button>
           </div>
         </div>
@@ -975,7 +1076,7 @@ const RoomDetail = () => {
                         onClick={() => toggleScheduleDevice(id)}
                         className={`rounded-lg border px-3 py-2 text-left text-xs ${selected ? "border-cyan-400 bg-cyan-50 text-cyan-900" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
                       >
-                        {device.name}
+                        {device.name + "_" + device.id}
                       </button>
                     );
                   })

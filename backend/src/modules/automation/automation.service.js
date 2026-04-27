@@ -1,3 +1,66 @@
+// Update automation rule
+async function updateRule(ruleId, payload) {
+  await ensureTable();
+  const {
+    name,
+    apply_to,
+    food_type,
+    metric,
+    compare_op,
+    threshold_value,
+    action_name,
+    action_device_ids,
+    action_device_types,
+    alert_level,
+    is_active,
+  } = payload;
+
+  const pool = await getPool();
+  await pool
+    .request()
+    .input("rule_id", sql.Int, ruleId)
+    .input("name", sql.NVarChar, name)
+    .input("apply_to", sql.NVarChar, apply_to)
+    .input("food_type", sql.NVarChar, food_type)
+    .input("metric", sql.NVarChar, metric)
+    .input("compare_op", sql.NVarChar, compare_op)
+    .input("threshold_value", sql.Float, Number(threshold_value))
+    .input("action_name", sql.NVarChar, action_name)
+    .input("action_device_ids", sql.NVarChar, action_device_ids || null)
+    .input("action_device_types", sql.NVarChar, action_device_types || null)
+    .input("alert_level", sql.NVarChar, alert_level)
+    .input("is_active", sql.Bit, is_active === undefined ? true : Boolean(is_active))
+    .query(`
+      UPDATE dbo.AutomationRules SET
+        name = @name,
+        apply_to = @apply_to,
+        food_type = @food_type,
+        metric = @metric,
+        compare_op = @compare_op,
+        threshold_value = @threshold_value,
+        action_name = @action_name,
+        action_device_ids = @action_device_ids,
+        action_device_types = @action_device_types,
+        alert_level = @alert_level,
+        is_active = @is_active
+      WHERE rule_id = @rule_id
+    `);
+
+  return {
+    rule_id: ruleId,
+    name,
+    apply_to,
+    food_type,
+    metric,
+    compare_op,
+    threshold_value: Number(threshold_value),
+    action_name,
+    action_device_ids,
+    action_device_types,
+    alert_level,
+    is_active: is_active === undefined ? true : Boolean(is_active),
+  };
+}
 const { sql, getPool } = require("../../../db");
 
 async function ensureTable() {
@@ -14,11 +77,17 @@ async function ensureTable() {
         compare_op NVARCHAR(20) NOT NULL,
         threshold_value FLOAT NOT NULL,
         action_name NVARCHAR(255) NOT NULL,
+        action_device_ids NVARCHAR(MAX) NULL,
+        action_device_types NVARCHAR(MAX) NULL,
         alert_level NVARCHAR(20) NOT NULL,
         is_active BIT NOT NULL DEFAULT(1),
         created_at DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
       );
     END
+    IF COL_LENGTH('dbo.AutomationRules', 'action_device_ids') IS NULL
+      ALTER TABLE dbo.AutomationRules ADD action_device_ids NVARCHAR(MAX) NULL;
+    IF COL_LENGTH('dbo.AutomationRules', 'action_device_types') IS NULL
+      ALTER TABLE dbo.AutomationRules ADD action_device_types NVARCHAR(MAX) NULL;
   `);
 }
 
@@ -35,6 +104,8 @@ async function listRules() {
       compare_op,
       threshold_value,
       action_name,
+      action_device_ids,
+      action_device_types,
       alert_level,
       is_active
     FROM dbo.AutomationRules
@@ -54,6 +125,8 @@ async function createRule(payload) {
     compare_op,
     threshold_value,
     action_name,
+    action_device_ids,
+    action_device_types,
     alert_level,
     is_active,
   } = payload;
@@ -77,14 +150,16 @@ async function createRule(payload) {
     .input("compare_op", sql.NVarChar, compare_op)
     .input("threshold_value", sql.Float, Number(threshold_value))
     .input("action_name", sql.NVarChar, action_name)
+    .input("action_device_ids", sql.NVarChar, action_device_ids || null)
+    .input("action_device_types", sql.NVarChar, action_device_types || null)
     .input("alert_level", sql.NVarChar, alert_level)
     .input("is_active", sql.Bit, Boolean(is_active)).query(`
       INSERT INTO dbo.AutomationRules (
         rule_id, name, apply_to, food_type, metric, compare_op,
-        threshold_value, action_name, alert_level, is_active
+        threshold_value, action_name, action_device_ids, action_device_types, alert_level, is_active
       ) VALUES (
         @rule_id, @name, @apply_to, @food_type, @metric, @compare_op,
-        @threshold_value, @action_name, @alert_level, @is_active
+        @threshold_value, @action_name, @action_device_ids, @action_device_types, @alert_level, @is_active
       )
     `);
 
@@ -97,6 +172,8 @@ async function createRule(payload) {
     compare_op,
     threshold_value: Number(threshold_value),
     action_name,
+    action_device_ids,
+    action_device_types,
     alert_level,
     is_active: Boolean(is_active),
   };
@@ -135,4 +212,5 @@ module.exports = {
   createRule,
   toggleRule,
   deleteRule,
+  updateRule,
 };

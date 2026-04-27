@@ -38,6 +38,7 @@ export const api = {
   createAutomationRule: (payload) => request("/automation", { method: "POST", body: JSON.stringify(payload) }),
   toggleAutomationRule: (id) => request(`/automation/${id}/toggle`, { method: "PATCH" }),
   deleteAutomationRule: (id) => request(`/automation/${id}`, { method: "DELETE" }),
+  updateAutomationRule: (id, payload) => request(`/automation/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
 
   getAuditLogs: ({ page, pageSize, from, to, actor, action, roomId } = {}) => {
     const params = new URLSearchParams();
