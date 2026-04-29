@@ -7,6 +7,7 @@ const router = express.Router();
 router.get("/", automationController.getRules);
 router.post("/", automationController.postRule);
 router.patch("/:id/toggle", automationController.patchToggleRule);
+router.patch("/:id", automationController.patchUpdateRule);
 router.delete("/:id", automationController.removeRule);
 
 router.get("/thresholds", thresholdsController.getThresholds);

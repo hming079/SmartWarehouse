@@ -8,13 +8,15 @@ import Placeholder from "./pages/Placeholder";
 import AreaManagement from "./pages/AreaManagement";
 import RoomDetail from "./pages/RoomDetail";
 import AuditLogs from "./pages/AuditLogs";
+import Home from "./pages/Home"
 
 const App = () => {
   return (
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/area" replace />} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Home/>}/>
           <Route path="/area" element={<AreaManagement />} />
           <Route path="/rooms/:roomId" element={<RoomDetail />} />
           <Route path="/dashboard" element={<Dashboard />} />

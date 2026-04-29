@@ -109,13 +109,8 @@ CREATE TABLE dbo.Shedules (
 GO
 
 CREATE TABLE dbo.Actions (
-  action_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-  code NVARCHAR(50) NOT NULL UNIQUE,
-  name NVARCHAR(255) NOT NULL,
-  domain NVARCHAR(50) NULL,
-  created_by_user_id INT NULL,
-  is_active BIT NOT NULL DEFAULT (1),
-  created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
+  action_id INT NOT NULL PRIMARY KEY,
+  action_name NVARCHAR(255) NOT NULL
 );
 GO
 
@@ -123,40 +118,38 @@ CREATE TABLE dbo.AutomationRules (
   rule_id INT NOT NULL PRIMARY KEY,
   name NVARCHAR(255) NOT NULL,
   apply_to NVARCHAR(255) NOT NULL,
-  food_type_id INT CONSTRAINT FK_Rules_FoodType FOREIGN KEY REFERENCES dbo.FoodTypes(type_id),
-  threshold_id INT NOT NULL,
-  action_id INT CONSTRAINT FK_Rules_Action FOREIGN KEY REFERENCES dbo.Actions(action_id),
-  target_device_id INT CONSTRAINT FK_Rules_Device FOREIGN KEY REFERENCES dbo.Devices(device_id),
+  food_type NVARCHAR(255) NOT NULL,
+  metric NVARCHAR(50) NOT NULL,
+  compare_op NVARCHAR(20) NOT NULL,
+  threshold_value FLOAT NOT NULL,
+  action_name NVARCHAR(255) NOT NULL,
+  alert_level NVARCHAR(20) NOT NULL,
   is_active BIT NOT NULL DEFAULT (1),
   created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
 );
 GO
+
 CREATE TABLE dbo.Threshold (
-  threshold_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-  sensor_id INT NULL,
-  metric NVARCHAR(20) NULL,
-  min_threshold FLOAT NULL,
-  max_threshold FLOAT NULL,
-  hysteresis FLOAT NULL,
-  alert_level NVARCHAR(20) NULL,
+  threshold_id INT NOT NULL PRIMARY KEY,
+  min_threshold FLOAT,
+  max_threshold FLOAT,
   is_active BIT NOT NULL DEFAULT (1),
-  created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
-  updated_at DATETIME2 NULL,
-  deleted_at DATETIME2 NULL
+  updated_at DATETIME2 NULL
 );
 GO
+
+
+
 
 CREATE TABLE dbo.Sensors (
   sensor_id INT NOT NULL PRIMARY KEY,
   threshold_id INT NULL,
+  shedule_id INT NULL,
   room_id INT NULL,
   name NVARCHAR(255),
   type NVARCHAR(20) CHECK (type IN ('TEMPERATURE', 'HUMIDITY', 'CO2', 'SMOKE')),
   status NVARCHAR(20) CHECK (status IN ('ACTIVE', 'INACTIVE', 'MAINTENANCE')),
-  last_value FLOAT,
-  last_update FLOAT,
-  last_connection DATETIME2 NULL,
-  setup_status NVARCHAR(5) NOT NULL CHECK (setup_status IN ('ON', 'OFF')),
+  last_connection DATETIME2 NULL
 );
 GO
 
@@ -181,15 +174,12 @@ CREATE TABLE dbo.Alerts (
 GO
 
 CREATE TABLE dbo.ActionLog (
-  action_log_id BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-  action_id INT NULL,
-  actor_user_id INT NULL,
-  target_type NVARCHAR(20) NOT NULL,
-  target_id INT NULL,
-  room_id INT NULL,
-  old_value NVARCHAR(MAX) NULL,
-  new_value NVARCHAR(MAX) NULL,
-  status NVARCHAR(20) NOT NULL DEFAULT ('ACCEPTED'),
+  action_id INT NOT NULL PRIMARY KEY,
+  sensor_id INT NULL,
+  user_id INT NULL,
+  action_type NVARCHAR(255),
+  old_value NVARCHAR(255),
+  new_value NVARCHAR(255),
   [timestamp] DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
 );
 GO
@@ -216,8 +206,7 @@ CREATE TABLE dbo.Devices (
   device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
   last_update_time DATETIME2 NULL,
   device_type NVARCHAR(50) NULL,
-  PRIMARY KEY (device_id),
-  setup_status NVARCHAR(5) NOT NULL CHECK (setup_status IN ('ON', 'OFF')),
+  PRIMARY KEY (device_id)
 );
 GO
 
@@ -251,15 +240,12 @@ ALTER TABLE dbo.Rooms ADD CONSTRAINT FK_Rooms_FoodType FOREIGN KEY (food_type_id
 ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Device FOREIGN KEY (device_id) REFERENCES dbo.Devices(device_id) ON DELETE SET NULL;
 ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Action FOREIGN KEY (action_id) REFERENCES dbo.Actions(action_id) ON DELETE SET NULL;
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Threshold FOREIGN KEY (threshold_id) REFERENCES dbo.Threshold(threshold_id);
+ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Shedule FOREIGN KEY (shedule_id) REFERENCES dbo.Shedules(shedule_id);
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
-ALTER TABLE dbo.Threshold ADD CONSTRAINT FK_Threshold_Sensor FOREIGN KEY (sensor_id) REFERENCES dbo.Sensors(sensor_id);
-ALTER TABLE dbo.AutomationRules ADD CONSTRAINT FK_Rules_Threshold FOREIGN KEY (threshold_id) REFERENCES dbo.Threshold(threshold_id);
 ALTER TABLE dbo.SensorData ADD CONSTRAINT FK_SensorData_Sensor FOREIGN KEY (sensor_id) REFERENCES dbo.Sensors(sensor_id) ON DELETE CASCADE;
 ALTER TABLE dbo.Alerts ADD CONSTRAINT FK_Alerts_Threshold FOREIGN KEY (threshold_id) REFERENCES dbo.Threshold(threshold_id);
-ALTER TABLE dbo.Actions ADD CONSTRAINT FK_Actions_CreatedByUser FOREIGN KEY (created_by_user_id) REFERENCES dbo.Users(user_id);
-ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_Action FOREIGN KEY (action_id) REFERENCES dbo.Actions(action_id);
-ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_ActorUser FOREIGN KEY (actor_user_id) REFERENCES dbo.Users(user_id);
-ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
+ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_Sensor FOREIGN KEY (sensor_id) REFERENCES dbo.Sensors(sensor_id);
+ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id);
 ALTER TABLE dbo.AlertSubscriptions ADD CONSTRAINT FK_AlertSubscriptions_Alert FOREIGN KEY (alert_id) REFERENCES dbo.Alerts(alert_id) ON DELETE CASCADE;
 ALTER TABLE dbo.AlertSubscriptions ADD CONSTRAINT FK_AlertSubscriptions_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id) ON DELETE CASCADE;
 ALTER TABLE dbo.UserPermissionAssignment ADD CONSTRAINT FK_UserPermissionAssignment_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id) ON DELETE CASCADE;
@@ -288,4 +274,75 @@ EXEC sp_addextendedproperty
   @level0type = N'Schema', @level0name = N'dbo',
   @level1type = N'Table',  @level1name = N'Sensors',
   @level2type = N'Column', @level2name = N'status';
+GO
+
+
+IF OBJECT_ID(N'dbo.trg_AutoUpdateDeviceOnSensorData', N'TR') IS NOT NULL
+    DROP TRIGGER dbo.trg_AutoUpdateDeviceOnSensorData;
+GO
+
+CREATE TRIGGER dbo.trg_AutoUpdateDeviceOnSensorData
+ON dbo.SensorData
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @DevicesToUpdate TABLE (
+        device_id INT NOT NULL,
+        new_status NVARCHAR(5) NOT NULL
+    );
+
+    INSERT INTO @DevicesToUpdate (device_id, new_status)
+    SELECT DISTINCT
+        TRY_CAST(REPLACE(LTRIM(RTRIM(split_ids.value)), 'switch-db-', '') AS INT) AS device_id,
+        CASE
+            WHEN UPPER(ar.action_name) LIKE N'%OFF%' OR ar.action_name LIKE N'%Tắt%' THEN 'OFF'
+            WHEN UPPER(ar.action_name) LIKE N'%ON%' OR ar.action_name LIKE N'%Bật%' THEN 'ON'
+            ELSE 'ON'
+        END AS new_status
+    FROM inserted i
+    INNER JOIN dbo.Sensors s
+        ON s.sensor_id = i.sensor_id
+    INNER JOIN dbo.Rooms rm
+        ON rm.room_id = s.room_id
+    LEFT JOIN dbo.FoodTypes ft
+        ON ft.type_id = rm.food_type_id
+    INNER JOIN dbo.AutomationRules ar
+        ON ar.is_active = 1
+       AND UPPER(ar.metric) = UPPER(s.type)
+       AND (
+            (ar.compare_op = '>'  AND i.value >  ar.threshold_value) OR
+            (ar.compare_op = '<'  AND i.value <  ar.threshold_value) OR
+            (ar.compare_op = '='  AND i.value =  ar.threshold_value) OR
+            (ar.compare_op = '>=' AND i.value >= ar.threshold_value) OR
+            (ar.compare_op = '<=' AND i.value <= ar.threshold_value)
+       )
+       AND (
+            ar.apply_to = rm.name
+            OR ar.apply_to = CAST(rm.room_id AS NVARCHAR(50))
+            OR ar.food_type = ft.name
+       )
+    CROSS APPLY STRING_SPLIT(COALESCE(ar.action_device_ids, ''), ',') AS split_ids
+    WHERE TRY_CAST(REPLACE(LTRIM(RTRIM(split_ids.value)), 'switch-db-', '') AS INT) IS NOT NULL;
+
+    IF EXISTS (SELECT 1 FROM @DevicesToUpdate)
+    BEGIN
+        UPDATE d
+        SET
+            d.device_status = tu.new_status,
+            d.last_update_time = SYSUTCDATETIME()
+        FROM dbo.Devices d
+        INNER JOIN @DevicesToUpdate tu
+            ON tu.device_id = d.device_id
+        WHERE d.device_status <> tu.new_status;
+
+        INSERT INTO dbo.DevicesLog (device_id, device_status, [timestamp])
+        SELECT DISTINCT
+            tu.device_id,
+            tu.new_status,
+            SYSUTCDATETIME()
+        FROM @DevicesToUpdate tu;
+    END
+END;
 GO

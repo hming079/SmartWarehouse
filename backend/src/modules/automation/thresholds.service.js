@@ -492,4 +492,3 @@ module.exports = {
   deleteThreshold,
   getThresholdById,
 };
-
