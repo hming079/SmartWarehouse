@@ -413,11 +413,11 @@ const RoomDetail = () => {
           <p className="mt-1 text-sm text-[#89a5d8]">Độ ẩm hiện tại</p>
         </div>
 
-        <div className="rounded-2xl border border-amber-400/20 bg-[#071a3f]/70 p-4 text-center">
+        {/* <div className="rounded-2xl border border-amber-400/20 bg-[#071a3f]/70 p-4 text-center">
           <TriangleAlert className="mx-auto mb-2 text-amber-300" size={22} />
           <p className="text-2xl font-bold text-amber-200">{formatValue(payload?.threshold?.temperature?.min, "°C")} ~ {formatValue(payload?.threshold?.temperature?.max, "°C")}</p>
           <p className="mt-1 text-sm text-[#89a5d8]">Ngưỡng nhiệt độ</p>
-        </div>
+        </div> */}
 
         <div className="rounded-2xl border border-cyan-400/20 bg-[#071a3f]/70 p-4 text-center">
           <Power className="mx-auto mb-2 text-cyan-300" size={22} />
@@ -484,11 +484,11 @@ const RoomDetail = () => {
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-white">{sensor.label}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${hasValue ? "bg-cyan-500/20 text-cyan-200" : "bg-white/10 text-white/60"}`}>
-                      {hasValue ? "Dang cap nhat" : "Khong co du lieu"}
+                      {hasValue ? "Đang cập nhật" : "Không có dữ liệu"}
                     </span>
                   </div>
                   <p className="mt-2 text-3xl font-bold text-white">{formatValue(sensor.value, sensor.unit)}</p>
-                  <p className="mt-1 text-xs text-[#8ea9d8]">Ngưỡng: {thresholdText}</p>
+                  {/* <p className="mt-1 text-xs text-[#8ea9d8]">Ngưỡng: {thresholdText}</p> */}
                   <p className="mt-1 text-xs text-[#8ea9d8]">Cập nhật: {formatDateTime(sensor.updatedAt)}</p>
                 </div>
               );
@@ -938,7 +938,7 @@ const RoomDetail = () => {
                     {controlDevices
                       .filter(d => (automationForm.actionDeviceType ? d.type === automationForm.actionDeviceType : true))
                       .map(device => (
-                        <option key={device.id} value={device.id}>{device.name} (ID: {device.id})</option>
+                        <option key={device.deviceId || device.id} value={device.deviceId || device.id}>{device.name} (ID: {device.deviceId || device.id})</option>
                       ))}
                   </select>
                   <span className="block text-xs text-gray-500 mt-1">(Giữ Ctrl/Command để chọn nhiều thiết bị)</span>
