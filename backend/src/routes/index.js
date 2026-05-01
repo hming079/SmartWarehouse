@@ -1,4 +1,5 @@
 const express = require("express");
+const authRoutes = require("../modules/auth/auth.route");
 const userRoutes = require("../modules/user/user.route");
 const iotRoutes = require("../modules/iot/iot.route");
 const devicesRoutes = require("../modules/devices/devices.route");
@@ -12,9 +13,12 @@ const floorRoutes = require("../modules/area/floor/floor.route");
 const roomRoutes = require("../modules/area/room/room.route");
 const foodTypeRoutes = require("../modules/area/food-type/food-type.route");
 const automationRoutes = require("../modules/automation/automation.route");
+const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
 
+router.use("/auth", authRoutes);
+router.use(requireAuth);
 router.use("/users", userRoutes);
 router.use("/devices", devicesRoutes);
 router.use("/alerts", alertsRoutes);

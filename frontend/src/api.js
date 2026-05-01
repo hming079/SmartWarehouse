@@ -1,11 +1,13 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5001/api";
 
 async function request(url, options = {}) {
+  const token = localStorage.getItem("auth_token");
   let response;
   try {
     response = await fetch(`${API_BASE_URL}${url}`, {
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
       ...options,
@@ -23,6 +25,13 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  login: (payload) => request("/auth/login", { method: "POST", body: JSON.stringify(payload) }),
+  logout: () => request("/auth/logout", { method: "POST" }),
+  getMe: () => request("/auth/me"),
+
+  getUsers: () => request("/users"),
+  createUser: (payload) => request("/users", { method: "POST", body: JSON.stringify(payload) }),
+
   getZones: (locationId) => request(`/zones?locationId=${locationId}`),
   createZone: (payload) => request("/zones", { method: "POST", body: JSON.stringify(payload) }),
   deleteZone: (id) => request(`/zones/${id}`, { method: "DELETE" }),
