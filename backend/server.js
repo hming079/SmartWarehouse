@@ -10,6 +10,7 @@ const routeV1 = require("./src/routes");
 const corsConfig = require("./src/config/cors");
 const notFound = require("./src/middleware/notFound");
 const errorHandler = require("./src/middleware/errorHandler");
+const userService = require("./src/modules/user/user.service");
 
 const app = express();
 app.use((req, res, next) => {
@@ -31,6 +32,12 @@ app.use("/api/v1", routeV1);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  try {
+    await userService.ensureInitialAuthData();
+    console.log("Initial auth data ensured (roles + admin user).");
+  } catch (error) {
+    console.error("Failed to ensure initial auth data:", error.message);
+  }
 });

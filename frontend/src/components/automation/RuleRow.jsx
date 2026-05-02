@@ -1,4 +1,4 @@
-const RuleRow = ({ rule, onDelete, onToggle }) => {
+const RuleRow = ({ rule, onDelete, onToggle, onEdit }) => {
   return (
     <tr className="border-b border-purple-100 last:border-b-0">
       <td className="px-4 py-4 font-semibold text-[#24124d]">{rule.name}</td>
@@ -6,6 +6,7 @@ const RuleRow = ({ rule, onDelete, onToggle }) => {
       <td className="px-4 py-4 text-gray-700">{rule.foodType}</td>
       <td className="px-4 py-4 text-gray-700">{rule.condition}</td>
       <td className="px-4 py-4 text-gray-700">{rule.action}</td>
+      <td className="px-4 py-4 text-gray-700">{rule.alertLevel || "--"}</td>
       <td className="px-4 py-4">
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${
@@ -17,6 +18,12 @@ const RuleRow = ({ rule, onDelete, onToggle }) => {
       </td>
       <td className="px-4 py-4">
         <div className="flex items-center gap-2">
+          <button
+            className="rounded-lg border border-amber-500 px-3 py-1 text-sm font-medium text-amber-600 hover:bg-amber-50"
+            onClick={() => onEdit?.(rule)}
+          >
+            Edit
+          </button>
           <button
             className="rounded-lg border border-blue-500 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50"
             onClick={() => onToggle?.(rule.id)}

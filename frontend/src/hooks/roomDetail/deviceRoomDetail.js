@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { api } from "../../api";
 import { toUiStatus, toUiType, toDbDevice, toSwitchDevice, mergeDevicesByDeviceId  } from "../../utils/deviceMapper"
 
 const IS_BROWSER = typeof window !== "undefined";
@@ -47,11 +48,6 @@ export const buildTelemetrySensors = (data, deviceStatus, switches = []) => {
         }),
     ];
 };
-const API_PORT = process.env.REACT_APP_API_PORT || "5001";
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || `http://localhost:${API_PORT}`;
-const API_IOT_DATA_URL = `${API_BASE_URL}/api/iot/data`;
-const API_IOT_CONTROL_URL = `${API_BASE_URL}/api/iot/control`;
-const API_DEVICES_URL = `${API_BASE_URL}/api/devices`;
 const IOT_CONTROL_DEVICE_IDS = String(process.env.REACT_APP_IOT_CONTROL_DEVICE_IDS || "15,16,17")
 	.split(",")
 	.map((item) => Number(String(item).trim()))
@@ -88,18 +84,8 @@ const canControlViaIot = (device) => {
 	return Number.isInteger(id) && IOT_CONTROL_DEVICE_IDS.includes(id);
 };
 export const fetchDbDevices = async (roomIdParam) => {
-    const dbUrl = new URL(`${API_BASE_URL}/api/devices`);
-    if (roomIdParam) {
-        dbUrl.searchParams.append("roomId", roomIdParam);
-    }
-
-    const dbRes = await fetch(dbUrl.toString());
-    if (!dbRes.ok) {
-        throw new Error(`DB request failed with status ${dbRes.status}`);
-    }
-
-    const dbJson = await dbRes.json();
-    return Array.isArray(dbJson?.data) ? dbJson.data.map(toDbDevice) : [];
+	const dbJson = await api.getDevices(roomIdParam);
+	return Array.isArray(dbJson?.data) ? dbJson.data.map(toDbDevice) : [];
 };
 const resolveIotControlKey = (device, fallbackId) => {
 	const deviceId = Number(device?.deviceId);
@@ -286,18 +272,8 @@ export function useDeviceData({ roomIdOverride } = {}) {
 				setLoading(true);
 				setError("");
 
-				const url = new URL(API_IOT_DATA_URL);
-				if (roomIdParam) {
-					url.searchParams.append("roomId", roomIdParam);
-				}
-
-				const res = await fetch(url.toString());
-				if (!res.ok) {
-					throw new Error("Request failed with status " + res.status);
-				}
-
 				const [json, dbDevices] = await Promise.all([
-					res.json(),
+					api.getIotData({ roomId: roomIdParam }),
 					fetchDbDevices(roomIdParam).catch(() => []),
 				]);
 				if (alive) {
@@ -406,15 +382,7 @@ export function useDeviceData({ roomIdOverride } = {}) {
 					return;
 				}
 
-				const dbResponse = await fetch(`${API_DEVICES_URL}/${device.deviceId}/toggle`, {
-					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
-				});
-				const dbResult = await dbResponse.json().catch(() => ({}));
-				if (!dbResponse.ok) {
-					setDevicesError(`Lỗi: ${dbResult?.error || dbResult?.message || "Không thể cập nhật thiết bị trong DB"}`);
-					return;
-				}
+				await api.toggleDevice(device.deviceId);
 
 				setPendingStatusById((prev) => ({
 					...prev,
@@ -433,42 +401,37 @@ export function useDeviceData({ roomIdOverride } = {}) {
 				return;
 			}
 
-			let response = null;
-			let result = {};
+			let controlResult = null;
+			let controlError = null;
 			const roomIdForControl = Number(roomIdParam ?? process.env.REACT_APP_IOT_DEFAULT_ROOM_ID);
 			const controlPayloadBase = Number.isInteger(roomIdForControl) && roomIdForControl > 0
 				? { roomId: roomIdForControl }
 				: {};
 			for (const candidateKey of keyCandidates) {
-				response = await fetch(API_IOT_CONTROL_URL, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ ...controlPayloadBase, key: candidateKey, value: newValue }),
-				});
-
-				const raw = await response.text();
 				try {
-					result = raw ? JSON.parse(raw) : {};
-				} catch (_) {
-					result = { error: raw || "Invalid server response" };
-				}
-
-				if (response.ok) {
+					controlResult = await api.controlIotDevice({
+						...controlPayloadBase,
+						key: candidateKey,
+						value: newValue,
+					});
+					controlError = null;
 					break;
-				}
+				} catch (err) {
+					controlError = err;
 
-				// Retry only for validation/key mismatch style 400 errors.
-				const errMsg = String(result?.error || result?.message || "").toLowerCase();
-				const shouldRetry =
-					response.status === 400 &&
-					(errMsg.includes("unsupported control key") || errMsg.includes("missing key"));
-				if (!shouldRetry) {
-					break;
+					// Retry only for validation/key mismatch style 400 errors.
+					const errMsg = String(err?.message || err?.payload?.error || err?.payload?.message || "").toLowerCase();
+					const shouldRetry =
+						err?.status === 400 &&
+						(errMsg.includes("unsupported control key") || errMsg.includes("missing key"));
+					if (!shouldRetry) {
+						break;
+					}
 				}
 			}
 
-			if (!response?.ok) {
-				if (response.status === 409) {
+			if (!controlResult) {
+				if (controlError?.status === 409) {
 					setPendingStatusById((prev) => ({
 						...prev,
 						[device.id]: {
@@ -481,7 +444,8 @@ export function useDeviceData({ roomIdOverride } = {}) {
 					return;
 				}
 
-				setDevicesError(`Lỗi (${response.status}): ${result.error || result.message || "Không thể điều khiển thiết bị"}`);
+				const statusText = controlError?.status ? ` (${controlError.status})` : "";
+				setDevicesError(`Lỗi${statusText}: ${controlError?.message || "Không thể điều khiển thiết bị"}`);
 				return;
 			}
 
@@ -533,17 +497,9 @@ export function useDeviceData({ roomIdOverride } = {}) {
 
 		if (device.deviceId !== null && device.deviceId !== undefined) {
 			try {
-				const response = await fetch(`${API_DEVICES_URL}/${device.deviceId}`, {
-					method: "DELETE",
-					headers: { "Content-Type": "application/json" },
-				});
-				const result = await response.json().catch(() => ({}));
-				if (!response.ok) {
-					setDevicesError(result?.error || result?.message || "Không thể xóa thiết bị trong DB");
-					return;
-				}
+				await api.deleteDevice(device.deviceId);
 			} catch (err) {
-				setDevicesError(`Lỗi kết nối: ${err.message}`);
+				setDevicesError(err?.message || "Không thể xóa thiết bị trong DB");
 				return;
 			}
 		}
@@ -578,17 +534,7 @@ export function useDeviceData({ roomIdOverride } = {}) {
 
 		setDevicesError("");
 		try {
-			const response = await fetch(`${API_BASE_URL}/api/iot/rooms/${roomId}/switches`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ type }),
-			});
-
-			const result = await response.json().catch(() => ({}));
-			if (!response.ok) {
-				setDevicesError(result.error || "Cannot add device");
-				return;
-			}
+            const result = await api.registerIotSwitch(roomId, { type });
 
 			const newSwitch = result?.switch;
 			if (!newSwitch?.key) {

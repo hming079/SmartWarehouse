@@ -1,5 +1,7 @@
 const axios = require("axios");
 const { sql, getPool } = require("../../../db");
+const automationService = require("../automation/automation.service");
+const devicesService = require("../devices/devices.service");
 
 const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(
   /\/+$/,
@@ -32,6 +34,12 @@ const SWITCH_LABELS = {
 
 const ALLOWED_SWITCH_TYPES = new Set(["fan", "dryer", "ac", "lights"]);
 
+const IOT_CONTROL_KEY_BY_TYPE = {
+  fan: "fan_on",
+  dryer: "dryer_on",
+  ac: "cooler_on",
+};
+
 let token = "";
 const customSwitchDefs = [];
 
@@ -48,6 +56,193 @@ function sanitizeSwitchKey(rawKey) {
   }
 
   return normalized;
+}
+
+function normalizeAutomationText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function parseAutomationDeviceIds(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
+}
+
+function parseAutomationDeviceTypes(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function normalizeAutomationCompareOp(value) {
+  const normalized = String(value || "").trim();
+  if ([">", "<", "="].includes(normalized)) {
+    return normalized;
+  }
+  const lower = normalized.toLowerCase();
+  if (["greater", "gt", "larger", "above"].includes(lower)) {
+    return ">";
+  }
+  if (["less", "lt", "below"].includes(lower)) {
+    return "<";
+  }
+  if (["equal", "equals", "eq"].includes(lower)) {
+    return "=";
+  }
+  return null;
+}
+
+function getAutomationMetricValue(payload, metric) {
+  const normalizedMetric = normalizeAutomationText(metric);
+  const metricData = payload?.[normalizedMetric];
+  const firstEntry = Array.isArray(metricData) ? metricData[0] : metricData;
+  const numericValue = Number(firstEntry?.value ?? firstEntry ?? NaN);
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function shouldTriggerAutomation(rule, metricValue) {
+  const thresholdValue = Number(rule?.threshold_value);
+  const compareOp = normalizeAutomationCompareOp(rule?.compare_op);
+
+  if (!Number.isFinite(metricValue) || !Number.isFinite(thresholdValue) || !compareOp) {
+    return false;
+  }
+
+  if (compareOp === ">") {
+    return metricValue > thresholdValue;
+  }
+
+  if (compareOp === "<") {
+    return metricValue < thresholdValue;
+  }
+
+  return metricValue === thresholdValue;
+}
+
+function shouldTargetAutomationDevice(device, rule) {
+  const targetIds = parseAutomationDeviceIds(rule?.action_device_ids);
+  const targetTypes = parseAutomationDeviceTypes(rule?.action_device_types);
+  const normalizedDeviceId = String(device?.deviceId ?? "").trim();
+  const normalizedType = String(device?.type || "").trim().toLowerCase();
+
+  if (targetIds.length > 0 && targetIds.includes(normalizedDeviceId)) {
+    return true;
+  }
+
+  if (targetTypes.length > 0 && normalizedType && targetTypes.includes(normalizedType)) {
+    return true;
+  }
+
+  return false;
+}
+
+function resolveAutomationTargetStatus(rule) {
+  const actionName = normalizeAutomationText(rule?.action_name);
+  if (!actionName) {
+    return null;
+  }
+
+  if (actionName.includes("tắt") || actionName.includes("tat") || actionName.includes("off")) {
+    return "OFF";
+  }
+
+  return "ON";
+}
+
+function resolveIotControlKey(device) {
+  const rawKey = String(device?.key || device?.deviceKey || "").trim().toLowerCase();
+  if (rawKey) {
+    if (["fan_on", "cooler_on", "dryer_on"].includes(rawKey)) {
+      return rawKey;
+    }
+
+    if (String(device?.id || "").startsWith("switch-") && rawKey) {
+      return rawKey;
+    }
+  }
+
+  const mappedKey = IOT_CONTROL_KEY_BY_TYPE[String(device?.type || "").trim().toLowerCase()];
+  if (mappedKey) {
+    return mappedKey;
+  }
+
+  return null;
+}
+
+async function getRoomNameById(roomId) {
+  const pool = await getPool();
+  const result = await pool.request().input("roomId", sql.Int, roomId).query(`
+    SELECT TOP 1 name
+    FROM dbo.Rooms
+    WHERE room_id = @roomId
+  `);
+
+  return String(result.recordset?.[0]?.name || "").trim();
+}
+
+async function executeAutomationRules({ roomId, payload, switches }) {
+  const roomName = await getRoomNameById(roomId).catch(() => "");
+  const rules = await automationService.listRules();
+  const activeRules = Array.isArray(rules) ? rules.filter((rule) => Boolean(rule?.is_active)) : [];
+
+  for (const rule of activeRules) {
+    const applyTo = normalizeAutomationText(rule?.apply_to);
+    const normalizedRoomName = normalizeAutomationText(roomName);
+    const roomIdText = String(roomId);
+
+    if (!applyTo) {
+      continue;
+    }
+
+    if (!applyTo.includes(normalizedRoomName) && !applyTo.includes(roomIdText)) {
+      continue;
+    }
+
+    const metricValue = getAutomationMetricValue(payload, rule?.metric);
+    if (!shouldTriggerAutomation(rule, metricValue)) {
+      continue;
+    }
+
+    const desiredStatus = resolveAutomationTargetStatus(rule);
+    if (!desiredStatus) {
+      continue;
+    }
+
+    const targetDevices = (Array.isArray(switches) ? switches : []).filter((device) => shouldTargetAutomationDevice(device, rule));
+
+    for (const device of targetDevices) {
+      const currentStatus = String(device?.status || "").trim().toUpperCase();
+      if (currentStatus === desiredStatus) {
+        continue;
+      }
+
+      if (device?.isConnected) {
+        const controlKey = resolveIotControlKey(device);
+        if (!controlKey) {
+          continue;
+        }
+
+        await controlDevice({
+          roomId,
+          key: controlKey,
+          value: desiredStatus === "ON" ? "1" : "0",
+        });
+        continue;
+      }
+
+      if (device?.deviceId !== undefined && device?.deviceId !== null) {
+        const toggled = await devicesService.toggleDevice(device.deviceId);
+        const toggledStatus = String(toggled?.status || "").trim().toUpperCase();
+        if (toggledStatus !== desiredStatus) {
+          await devicesService.toggleDevice(device.deviceId);
+        }
+      }
+    }
+  }
 }
 
 function normalizeSwitchType(rawType, key) {
@@ -860,6 +1055,14 @@ async function getData({ roomId: rawRoomId } = {}) {
   const iotSwitches = extractSwitchStates(data, getAllSwitchDefs(roomId));
   const dbDevices = await getDevicesFromDb(pool, roomId);
   const mergedSwitches = mergeIotAndDbDevices(iotSwitches, dbDevices);
+
+  await executeAutomationRules({
+    roomId,
+    payload: data,
+    switches: mergedSwitches,
+  }).catch((err) => {
+    console.warn("Automation execution failed:", err?.message || err);
+  });
 
   return {
     ok: true,

@@ -10,20 +10,19 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { api } from "../../api";
 
 const menuItems = [
   { label: "Home", path: "/home", icon: Home },
   { label: "Area", path: "/area", icon: MapPinned },
-  // { label: "Devices", path: "/devices", icon: Grid3X3, useDeviceView: true },
   { label: "Automation", path: "/automation", icon: SlidersHorizontal },
-  // { label: "Alerts", path: "/alerts", icon: Bell },
   { label: "Schedules", path: "/schedules", icon: CalendarClock },
-  // { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  // { label: "Audit logs", path: "/audit-logs", icon: ClipboardList },
-  // { label: "Settings", path: "/settings", icon: Cog },
+  { label: "Create Account", path: "/users", icon: Cog, roles: ["manager"] },
 ];
 
 const Sidebar = () => {
+  const currentUser = JSON.parse(localStorage.getItem("auth_user") || "null");
+  const currentRole = (currentUser?.role_name || "").toLowerCase();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [searchParams] = useSearchParams();
@@ -53,6 +52,18 @@ const Sidebar = () => {
     navigate(fullPath);
   };
 
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch (_) {
+      // Ignore logout API errors and clear local session anyway
+    } finally {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+      navigate("/login", { replace: true });
+    }
+  };
+
   return (
     <aside className="sticky top-0 flex h-screen w-[200px] shrink-0 flex-col overflow-y-auto bg-gradient-to-b from-[#1a0b3b] to-[#2d0b5a] p-3 text-white lg:w-[210px]">
       <div className="mb-6 flex items-center gap-3 rounded-xl px-2 py-2">
@@ -63,22 +74,31 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
-        {menuItems.map(({ label, path, icon: Icon, useDeviceView }) => {
-          const active = pathname === path || pathname.startsWith(`${path}/`);
-          return (
-            <button
-              key={label}
-              onClick={() => handleNavigate(path, useDeviceView)}
-              className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition ${
-                active ? "bg-purple-500 font-semibold text-white shadow" : "text-white/85 hover:bg-white/10"
-              }`}
-            >
-              <Icon size={20} />
-              <span className="text-sm">{label}</span>
-            </button>
-          );
-        })}
+        {menuItems
+          .filter((item) => !item.roles || item.roles.includes(currentRole))
+          .map(({ label, path, icon: Icon, useDeviceView }) => {
+            const active = pathname === path || pathname.startsWith(`${path}/`);
+            return (
+              <button
+                key={label}
+                onClick={() => handleNavigate(path, useDeviceView)}
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition ${
+                  active ? "bg-purple-500 font-semibold text-white shadow" : "text-white/85 hover:bg-white/10"
+                }`}
+              >
+                <Icon size={20} />
+                <span className="text-sm">{label}</span>
+              </button>
+            );
+          })}
       </nav>
+
+      <button
+        onClick={handleLogout}
+        className="mt-3 rounded-xl border border-white/30 px-4 py-2 text-sm font-medium text-white/90 hover:bg-white/10"
+      >
+        Logout
+      </button>
     </aside>
   );
 };

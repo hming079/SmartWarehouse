@@ -123,6 +123,8 @@ CREATE TABLE dbo.AutomationRules (
   compare_op NVARCHAR(20) NOT NULL,
   threshold_value FLOAT NOT NULL,
   action_name NVARCHAR(255) NOT NULL,
+  action_device_ids NVARCHAR(MAX) NULL,
+  action_device_types NVARCHAR(MAX) NULL,
   alert_level NVARCHAR(20) NOT NULL,
   is_active BIT NOT NULL DEFAULT (1),
   created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
