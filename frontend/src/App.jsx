@@ -22,7 +22,8 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/devices/:view?" element={<Devices />} />
           <Route path="/automation" element={<Automation />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/schedules" element={<Schedules />} />
+          <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="*" element={<Placeholder />} />
         </Routes>
       </MainLayout>
