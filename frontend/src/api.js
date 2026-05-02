@@ -17,8 +17,13 @@ async function request(url, options = {}) {
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || error.error || "Request failed");
+    const errorPayload = await response.json().catch(() => ({}));
+    const requestError = new Error(
+      errorPayload.message || errorPayload.error || "Request failed",
+    );
+    requestError.status = response.status;
+    requestError.payload = errorPayload;
+    throw requestError;
   }
 
   return response.json();
@@ -120,5 +125,19 @@ export const api = {
     const query = params.toString();
     return request(`/dashboard/alerts-summary${query ? `?${query}` : ""}`);
   },
+
+  getIotData: ({ roomId } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    const query = params.toString();
+    return request(`/iot/data${query ? `?${query}` : ""}`);
+  },
+  controlIotDevice: (payload) =>
+    request("/iot/control", { method: "POST", body: JSON.stringify(payload) }),
+  registerIotSwitch: (roomId, payload) =>
+    request(`/iot/rooms/${roomId}/switches`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
