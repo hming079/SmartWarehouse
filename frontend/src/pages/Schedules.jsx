@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { CalendarClock, Plus, Trash2, Edit, ArrowRight } from "lucide-react";
 import Modal from "../components/ui/Modal";
 import { api } from "../api";
 
@@ -207,103 +208,141 @@ const Schedules = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-lg lg:flex-row lg:items-center lg:justify-between">
+    <section className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-[#24124d]">Schedules</h1>
-          <p className="mt-1 text-sm text-[#5a4f7a]">
+          <h1 className="text-2xl font-bold text-[#24124d] flex items-center gap-3">
+            <CalendarClock className="text-[#7c3aed]" size={28} />
+            Schedules
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
             Configure recurring automation schedules for your devices.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={activeFilter}
-            onChange={(e) => setActiveFilter(e.target.value)}
-            className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 text-sm font-medium text-[#24124d]"
-          >
-            <option value="all">All schedules</option>
-            <option value="active">Active only</option>
-            <option value="inactive">Inactive only</option>
-          </select>
+          <div className="flex items-center gap-1 rounded-xl bg-white p-1 border border-[#e3dbf2]">
+            {[
+              { key: "all", label: "All" },
+              { key: "active", label: "Active" },
+              { key: "inactive", label: "Inactive" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setActiveFilter(item.key)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  activeFilter === item.key 
+                    ? "bg-[#7c3aed]/10 text-[#7c3aed] shadow-sm" 
+                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
           <button
             onClick={openCreateModal}
-            className="rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white shadow transition hover:brightness-110"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all hover:brightness-110"
           >
-            + Add schedule
+            <Plus size={16} /> Add schedule
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white p-4 shadow-lg">
-        {loading && <p className="text-sm text-gray-500">Loading schedules...</p>}
-        {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      <div className="rounded-2xl border border-[#e3dbf2] bg-white p-4 md:p-6 shadow-sm">
+        {loading && (
+          <div className="flex justify-center p-10">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-[#7c3aed]"></div>
+          </div>
+        )}
+        {!loading && error && <div className="rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>}
+        
         {!loading && !error && items.length === 0 && (
-          <p className="text-sm text-gray-500">No schedules found.</p>
+          <div className="p-10 text-center text-gray-400">
+            <CalendarClock className="mx-auto mb-3 opacity-50" size={48} />
+            <p>No schedules found.</p>
+          </div>
         )}
 
         {!loading && !error && items.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-[#1d1645]">
-              <thead>
-                <tr className="border-b border-[#ece6f8] text-left">
-                  <th className="px-3 py-3 font-semibold">Name</th>
-                  <th className="px-3 py-3 font-semibold">Time Range</th>
-                  <th className="px-3 py-3 font-semibold">Days</th>
-                  <th className="px-3 py-3 font-semibold">Devices</th>
-                  <th className="px-3 py-3 font-semibold">Action</th>
-                  <th className="px-3 py-3 font-semibold">Status</th>
-                  <th className="px-3 py-3 font-semibold">Operations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b border-[#f4effc] last:border-b-0">
-                    <td className="px-3 py-3 font-medium">{item.name}</td>
-                    <td className="px-3 py-3">
-                      {toTimeInput(item.start_time)} - {toTimeInput(item.end_time)}
-                    </td>
-                    <td className="px-3 py-3">{item.days_of_week || "-"}</td>
-                    <td className="px-3 py-3">{item.device_names || "-"}</td>
-                    <td className="px-3 py-3">{item.action}</td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                          item.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-rose-100 text-rose-700"
-                        }`}
-                      >
-                        {item.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => openEditModal(item)}
-                          className="rounded-lg bg-[#ece6f8] px-3 py-1.5 text-xs font-semibold text-[#1d1645] transition hover:bg-[#ddd0f4]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggle(item.id)}
-                          className="rounded-lg bg-[#d6f3e6] px-3 py-1.5 text-xs font-semibold text-[#14623e] transition hover:bg-[#c4ebd9]"
-                        >
-                          Toggle
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="rounded-lg bg-[#ffd9d9] px-3 py-1.5 text-xs font-semibold text-[#8a1f1f] transition hover:bg-[#ffc3c3]"
-                        >
-                          Delete
-                        </button>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {items.map((item) => (
+              <div key={item.id} className="group relative overflow-hidden rounded-2xl border border-[#e3dbf2] bg-[#fcfbff] p-5 transition-all hover:border-[#7c3aed]/50 hover:shadow-lg">
+                <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#7c3aed]/5 blur-[50px] transition-all group-hover:bg-[#7c3aed]/10" />
+                
+                <div className="relative z-10">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-bold text-[#24124d]">{item.name || `Schedule #${item.id}`}</h3>
+                      <div className="mt-1 flex items-center gap-2 text-xs font-medium text-gray-500">
+                        <span className="flex items-center gap-1 rounded-md border border-[#e3dbf2] bg-white px-2 py-1">
+                          {toTimeInput(item.start_time)} <ArrowRight size={10} /> {toTimeInput(item.end_time)}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <button
+                      onClick={() => handleToggle(item.id)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        item.is_active ? 'bg-[#7c3aed]' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          item.is_active ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="mb-4 space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {DAY_OPTIONS.map((day) => {
+                        const isActive = item.days_of_week?.includes(day);
+                        return (
+                          <span key={day} className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${isActive ? "border-[#7c3aed]/30 bg-[#7c3aed]/10 text-[#7c3aed]" : "border-[#e3dbf2] bg-white text-gray-400"}`}>
+                            {day.charAt(0)}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Action:</span>
+                      <span className={`rounded-md px-2 py-0.5 font-bold ${
+                        item.action === "POWER_ON" ? "bg-emerald-500/20 text-emerald-300" : 
+                        item.action === "POWER_OFF" ? "bg-rose-500/20 text-rose-300" : 
+                        "bg-amber-500/20 text-amber-300"
+                      }`}>
+                        {item.action || "--"}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-start justify-between text-xs">
+                      <span className="mt-0.5 text-gray-500">Devices:</span>
+                      <span className="max-w-[60%] truncate text-right font-medium text-[#24124d]" title={item.device_names}>
+                        {item.device_names || "No devices"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex gap-2 border-t border-[#e3dbf2] pt-4">
+                    <button
+                      onClick={() => openEditModal(item)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#f5f1fb] px-3 py-2 text-xs font-semibold text-[#5c4f80] transition-all hover:bg-[#eadef7]"
+                    >
+                      <Edit size={14} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 transition-all hover:bg-rose-100"
+                    >
+                      <Trash2 size={14} /> Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -441,7 +480,7 @@ const Schedules = () => {
           </div>
         </form>
       </Modal>
-    </div>
+    </section>
   );
 };
 

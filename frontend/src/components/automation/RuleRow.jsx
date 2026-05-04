@@ -13,7 +13,7 @@ const RuleRow = ({ rule, onDelete, onToggle, onEdit }) => {
             rule.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
           }`}
         >
-          {rule.active ? "Đang bật" : "Tắt"}
+          {rule.active ? "Bật" : "Tắt"}
         </span>
       </td>
       <td className="px-4 py-4">
