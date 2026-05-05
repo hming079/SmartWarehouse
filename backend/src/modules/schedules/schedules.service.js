@@ -28,11 +28,7 @@ function normalizeTime(value, fieldName, { required }) {
 }
 
 function normalizeAction(payload, { required }) {
-  const { action, active } = payload;
-
-  if (active !== undefined && active !== null) {
-    return Boolean(active) ? "POWER_ON" : "POWER_OFF";
-  }
+  const { action } = payload;
 
   if (action === undefined || action === null || action === "") {
     if (required) {
@@ -95,6 +91,54 @@ function normalizeDeviceIds(value) {
 async function ensureDevicesScheduleColumn() {
   const pool = await getPool();
   await pool.request().batch(`
+    IF COL_LENGTH('dbo.Shedules', 'room_id') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Shedules ADD room_id INT NULL;
+    END;
+
+    IF COL_LENGTH('dbo.Shedules', 'is_active') IS NULL
+    BEGIN
+      ALTER TABLE dbo.Shedules ADD is_active BIT NULL;
+    END;
+
+    IF COL_LENGTH('dbo.Shedules', 'action') IS NOT NULL
+    BEGIN
+      UPDATE dbo.Shedules
+      SET is_active = CASE WHEN action = 'POWER_OFF' THEN 0 ELSE 1 END
+      WHERE is_active IS NULL;
+    END
+    ELSE
+    BEGIN
+      UPDATE dbo.Shedules
+      SET is_active = 1
+      WHERE is_active IS NULL;
+    END;
+
+    IF EXISTS (
+      SELECT 1
+      FROM sys.columns
+      WHERE object_id = OBJECT_ID('dbo.Shedules')
+        AND name = 'is_active'
+        AND is_nullable = 1
+    )
+    BEGIN
+      ALTER TABLE dbo.Shedules ALTER COLUMN is_active BIT NOT NULL;
+    END;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM sys.default_constraints dc
+      INNER JOIN sys.columns c
+        ON c.object_id = dc.parent_object_id
+       AND c.column_id = dc.parent_column_id
+      WHERE dc.parent_object_id = OBJECT_ID('dbo.Shedules')
+        AND c.name = 'is_active'
+    )
+    BEGIN
+      ALTER TABLE dbo.Shedules
+      ADD CONSTRAINT DF_Shedules_is_active DEFAULT (1) FOR is_active;
+    END;
+
     IF COL_LENGTH('dbo.Devices', 'shedule_id') IS NULL
     BEGIN
       ALTER TABLE dbo.Devices ADD shedule_id INT NULL;
@@ -167,6 +211,8 @@ async function applyScheduleDevices(scheduleId, deviceIds) {
 }
 
 async function getScheduleOrThrow(scheduleId) {
+  await ensureDevicesScheduleColumn();
+
   const id = Number(scheduleId);
   if (!Number.isInteger(id) || id <= 0) {
     throw createHttpError(400, "Invalid schedule id");
@@ -177,17 +223,18 @@ async function getScheduleOrThrow(scheduleId) {
     SELECT TOP 1
       sh.shedule_id AS id,
       sh.name,
-      CONVERT(varchar(8), sh.start_time, 108) AS start_time,
-      CONVERT(varchar(8), sh.end_time, 108) AS end_time,
+      CAST(sh.start_time AS VARCHAR(8)) AS start_time,
+      CAST(sh.end_time AS VARCHAR(8)) AS end_time,
       sh.days_of_week,
       sh.action,
+      sh.room_id,
+      sh.is_active,
       ISNULL(STUFF((
         SELECT ',' + CAST(d.device_id AS varchar(12))
         FROM dbo.Devices d
         WHERE d.shedule_id = sh.shedule_id
         FOR XML PATH(''), TYPE
-      ).value('.', 'nvarchar(max)'), 1, 1, ''), '') AS device_ids,
-      CASE WHEN sh.action = 'POWER_OFF' THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS is_active
+      ).value('.', 'nvarchar(max)'), 1, 1, ''), '') AS device_ids
     FROM dbo.Shedules sh
     WHERE sh.shedule_id = @id
   `);
@@ -209,17 +256,19 @@ async function listSchedules({ roomId, deviceId, active }) {
 
   if (active !== undefined && active !== null) {
     request.input("active", sql.Bit, Boolean(active));
-    whereClause +=
-      " AND (CASE WHEN sh.action = 'POWER_OFF' THEN 0 ELSE 1 END) = @active";
+    whereClause += " AND sh.is_active = @active";
   }
 
   if (roomId) {
     request.input("roomId", sql.Int, Number(roomId));
     whereClause += `
-      AND EXISTS (
-        SELECT 1 FROM dbo.Devices d
-        WHERE d.shedule_id = sh.shedule_id
-          AND d.room_id = @roomId
+      AND (
+        sh.room_id = @roomId
+        OR EXISTS (
+          SELECT 1 FROM dbo.Devices d
+          WHERE d.shedule_id = sh.shedule_id
+            AND d.room_id = @roomId
+        )
       )
     `;
   }
@@ -243,6 +292,9 @@ async function listSchedules({ roomId, deviceId, active }) {
       CONVERT(varchar(8), sh.end_time, 108) AS end_time,
       sh.days_of_week,
       sh.action,
+      sh.is_active,
+      COALESCE(sh.room_id, device_room.room_id) AS room_id,
+      COALESCE(room_by_schedule.name, device_room.room_name) AS room_name,
       ISNULL(STUFF((
         SELECT ',' + CAST(d.device_id AS varchar(12))
         FROM dbo.Devices d
@@ -254,9 +306,20 @@ async function listSchedules({ roomId, deviceId, active }) {
         FROM dbo.Devices d
         WHERE d.shedule_id = sh.shedule_id
         FOR XML PATH(''), TYPE
-      ).value('.', 'nvarchar(max)'), 1, 2, ''), '') AS device_names,
-      CASE WHEN sh.action = 'POWER_OFF' THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS is_active
+      ).value('.', 'nvarchar(max)'), 1, 2, ''), '') AS device_names
     FROM dbo.Shedules sh
+    LEFT JOIN dbo.Rooms room_by_schedule
+      ON room_by_schedule.room_id = sh.room_id
+    OUTER APPLY (
+      SELECT TOP 1
+        r.room_id,
+        r.name AS room_name
+      FROM dbo.Devices d
+      LEFT JOIN dbo.Rooms r ON r.room_id = d.room_id
+      WHERE d.shedule_id = sh.shedule_id
+        AND d.room_id IS NOT NULL
+      ORDER BY d.device_id DESC
+    ) device_room
     ${whereClause}
     ORDER BY sh.shedule_id DESC
   `);
@@ -305,6 +368,8 @@ async function listScheduleDevices({ roomId }) {
 }
 
 async function createSchedule(payload) {
+  await ensureDevicesScheduleColumn();
+
   const name = String(payload.name || "").trim();
   if (!name) {
     throw createHttpError(400, "name is required");
@@ -318,7 +383,9 @@ async function createSchedule(payload) {
   });
   const daysOfWeek = normalizeDays(payload.days_of_week, { required: true });
   const action = normalizeAction(payload, { required: true });
+  const isActive = payload.is_active === undefined ? true : Boolean(payload.is_active);
   const deviceIds = normalizeDeviceIds(payload.device_ids) || [];
+  const roomId = payload.room_id ? Number(payload.room_id) : null;
 
   const pool = await getPool();
   const nextIdResult = await pool.request().query(`
@@ -328,31 +395,42 @@ async function createSchedule(payload) {
 
   const nextId = Number(nextIdResult.recordset[0].nextId);
 
-  await pool
+  const request = pool
     .request()
     .input("id", sql.Int, nextId)
     .input("name", sql.NVarChar(255), name)
     .input("start_time", sql.NVarChar(8), startTime)
     .input("end_time", sql.NVarChar(8), endTime)
     .input("days_of_week", sql.NVarChar(255), daysOfWeek)
-    .input("action", sql.NVarChar(20), action).query(`
-      INSERT INTO dbo.Shedules (
-        shedule_id,
-        name,
-        start_time,
-        end_time,
-        days_of_week,
-        action
-      )
-      VALUES (
-        @id,
-        @name,
-        CONVERT(time, @start_time),
-        CONVERT(time, @end_time),
-        @days_of_week,
-        @action
-      )
-    `);
+    .input("is_active", sql.Bit, isActive)
+    .input("action", sql.NVarChar(20), action);
+
+  if (roomId) {
+    request.input("room_id", sql.Int, roomId);
+  }
+
+  await request.query(`
+    INSERT INTO dbo.Shedules (
+      shedule_id,
+      name,
+      start_time,
+      end_time,
+      days_of_week,
+      is_active,
+      action
+      ${roomId ? ", room_id" : ""}
+    )
+    VALUES (
+      @id,
+      @name,
+      @start_time,
+      @end_time,
+      @days_of_week,
+      @is_active,
+      @action
+      ${roomId ? ", @room_id" : ""}
+    )
+  `);
 
   await applyScheduleDevices(nextId, deviceIds);
 
@@ -364,21 +442,26 @@ async function createSchedule(payload) {
     days_of_week: daysOfWeek,
     action,
     device_ids: deviceIds.join(","),
-    is_active: action !== "POWER_OFF",
+    is_active: isActive,
+    room_id: roomId,
   };
 }
 
 async function updateSchedule(scheduleId, payload) {
+  await ensureDevicesScheduleColumn();
+
   const existing = await getScheduleOrThrow(scheduleId);
 
   const hasName = payload.name !== undefined;
   const hasStartTime = payload.start_time !== undefined;
   const hasEndTime = payload.end_time !== undefined;
   const hasDays = payload.days_of_week !== undefined;
-  const hasAction = payload.action !== undefined || payload.active !== undefined;
+  const hasAction = payload.action !== undefined;
   const hasDeviceIds = payload.device_ids !== undefined;
+  const hasRoomId = payload.room_id !== undefined;
+  const hasIsActive = payload.is_active !== undefined;
 
-  if (!hasName && !hasStartTime && !hasEndTime && !hasDays && !hasAction && !hasDeviceIds) {
+  if (!hasName && !hasStartTime && !hasEndTime && !hasDays && !hasAction && !hasDeviceIds && !hasRoomId && !hasIsActive) {
     throw createHttpError(400, "No fields to update");
   }
 
@@ -394,30 +477,44 @@ async function updateSchedule(scheduleId, payload) {
   const daysOfWeek = normalizeDays(payload.days_of_week, { required: false });
   const action = normalizeAction(payload, { required: false });
   const deviceIds = normalizeDeviceIds(payload.device_ids);
+  const roomId = hasRoomId ? (payload.room_id ? Number(payload.room_id) : null) : existing.room_id;
 
   const nextStartTime = startTime === undefined ? existing.start_time : startTime;
   const nextEndTime = endTime === undefined ? existing.end_time : endTime;
   const nextDays = daysOfWeek === undefined ? existing.days_of_week : daysOfWeek;
   const nextAction = action === undefined ? existing.action : action;
+  const nextIsActive = hasIsActive ? Boolean(payload.is_active) : Boolean(existing.is_active);
 
   const pool = await getPool();
-  await pool
+  const request = pool
     .request()
     .input("id", sql.Int, Number(scheduleId))
     .input("name", sql.NVarChar(255), name)
     .input("start_time", sql.NVarChar(8), nextStartTime)
     .input("end_time", sql.NVarChar(8), nextEndTime)
     .input("days_of_week", sql.NVarChar(255), nextDays)
-    .input("action", sql.NVarChar(20), nextAction).query(`
-      UPDATE dbo.Shedules
-      SET
-        name = @name,
-        start_time = CONVERT(time, @start_time),
-        end_time = CONVERT(time, @end_time),
-        days_of_week = @days_of_week,
-        action = @action
-      WHERE shedule_id = @id
-    `);
+    .input("is_active", sql.Bit, nextIsActive)
+    .input("action", sql.NVarChar(20), nextAction);
+
+  if (roomId !== null) {
+    request.input("room_id", sql.Int, roomId);
+  }
+
+  const updateSetClause = `
+    name = @name,
+    start_time = @start_time,
+    end_time = @end_time,
+    days_of_week = @days_of_week,
+    is_active = @is_active,
+    action = @action
+    ${roomId !== null ? ", room_id = @room_id" : ""}
+  `;
+
+  await request.query(`
+    UPDATE dbo.Shedules
+    SET ${updateSetClause}
+    WHERE shedule_id = @id
+  `);
 
   if (deviceIds !== undefined) {
     await applyScheduleDevices(scheduleId, deviceIds);
@@ -431,7 +528,8 @@ async function updateSchedule(scheduleId, payload) {
     days_of_week: nextDays,
     action: nextAction,
     device_ids: deviceIds ? deviceIds.join(",") : existing.device_ids,
-    is_active: nextAction !== "POWER_OFF",
+    is_active: nextIsActive,
+    room_id: roomId,
   };
 }
 
@@ -459,24 +557,37 @@ async function deleteSchedule(scheduleId) {
 }
 
 async function toggleSchedule(scheduleId) {
-  const existing = await getScheduleOrThrow(scheduleId);
-  const nextAction = existing.action === "POWER_OFF" ? "POWER_ON" : "POWER_OFF";
+  await ensureDevicesScheduleColumn();
 
   const pool = await getPool();
   await pool
     .request()
     .input("id", sql.Int, Number(scheduleId))
-    .input("action", sql.NVarChar(20), nextAction).query(`
+    .query(`
       UPDATE dbo.Shedules
-      SET action = @action
+      SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END
       WHERE shedule_id = @id
     `);
+
+  const result = await pool
+    .request()
+    .input("id", sql.Int, Number(scheduleId))
+    .query(`
+      SELECT TOP 1 action, is_active
+      FROM dbo.Shedules
+      WHERE shedule_id = @id
+    `);
+
+  const item = result.recordset?.[0] || null;
+  if (!item) {
+    throw createHttpError(404, "Schedule not found");
+  }
 
   return {
     id: Number(scheduleId),
     toggled: true,
-    action: nextAction,
-    is_active: nextAction !== "POWER_OFF",
+    action: item.action,
+    is_active: Boolean(item.is_active),
   };
 }
 

@@ -4,12 +4,19 @@ import { CalendarClock, Plus, Trash2, Edit, ArrowRight } from "lucide-react";
 import Modal from "../components/ui/Modal";
 import { api } from "../api";
 
+const LOCATION_ID = 1;
+
 const DAY_OPTIONS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const ACTION_OPTIONS = [
   { value: "POWER_ON", label: "Power On" },
   { value: "POWER_OFF", label: "Power Off" },
   { value: "LOW_POWER", label: "Low Power" },
 ];
+
+function getActionLabel(value) {
+  const found = ACTION_OPTIONS.find((item) => item.value === value);
+  return found?.label || value || "--";
+}
 
 const initialForm = {
   name: "",
@@ -44,7 +51,7 @@ function parseDeviceIds(value) {
 
 const Schedules = () => {
   const [searchParams] = useSearchParams();
-  const roomId = Number(searchParams.get("roomId")) || null;
+  const urlRoomId = Number(searchParams.get("roomId")) || null;
 
   const [items, setItems] = useState([]);
   const [deviceOptions, setDeviceOptions] = useState([]);
@@ -52,17 +59,75 @@ const Schedules = () => {
   const [error, setError] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
 
+  const [zones, setZones] = useState([]);
+  const [floors, setFloors] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  const [selectedZone, setSelectedZone] = useState(null);
+  const [selectedFloor, setSelectedFloor] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(urlRoomId);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [form, setForm] = useState(initialForm);
 
+  const roomId = selectedRoom || urlRoomId;
+
   const activeQuery = useMemo(() => {
     if (activeFilter === "active") return true;
     if (activeFilter === "inactive") return false;
     return undefined;
   }, [activeFilter]);
+
+  // Fetch zones on mount
+  useEffect(() => {
+    const loadZones = async () => {
+      try {
+        const res = await api.getZones(LOCATION_ID);
+        setZones(res.data || []);
+      } catch (err) {
+        console.error("Failed to load zones:", err.message);
+      }
+    };
+    loadZones();
+  }, []);
+
+  // Fetch floors when zone changes
+  useEffect(() => {
+    const loadFloors = async () => {
+      if (!selectedZone) {
+        setFloors([]);
+        return;
+      }
+      try {
+        const res = await api.getFloors(selectedZone);
+        setFloors(res.data || []);
+      } catch (err) {
+        console.error("Failed to load floors:", err.message);
+        setFloors([]);
+      }
+    };
+    loadFloors();
+  }, [selectedZone]);
+
+  // Fetch rooms when floor changes
+  useEffect(() => {
+    const loadRooms = async () => {
+      if (!selectedFloor) {
+        setRooms([]);
+        return;
+      }
+      try {
+        const res = await api.getRooms(selectedFloor);
+        setRooms(res.data || []);
+      } catch (err) {
+        console.error("Failed to load rooms:", err.message);
+        setRooms([]);
+      }
+    };
+    loadRooms();
+  }, [selectedFloor]);
 
   const loadSchedules = async () => {
     try {
@@ -103,7 +168,7 @@ const Schedules = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (item) => {
+  const openEditModal = async (item) => {
     setEditingId(item.id);
     setForm({
       name: item.name || "",
@@ -114,6 +179,38 @@ const Schedules = () => {
       action: item.action || "POWER_ON",
     });
     setFormError("");
+    
+    // Pre-populate room selection if schedule has room info
+    if (item.room_id) {
+      const roomNum = item.room_id;
+      setSelectedRoom(roomNum);
+      
+      // Find and load the zone and floor for this room
+      if (zones.length > 0) {
+        for (const zone of zones) {
+          try {
+            const floorsRes = await api.getFloors(zone.zone_id);
+            const zoneFloors = floorsRes.data || [];
+            
+            for (const floor of zoneFloors) {
+              const roomsRes = await api.getRooms(floor.floor_id);
+              const floorRooms = roomsRes.data || [];
+              
+              if (floorRooms.find(r => r.room_id === roomNum)) {
+                setSelectedZone(zone.zone_id);
+                setSelectedFloor(floor.floor_id);
+                setFloors(zoneFloors);
+                setRooms(floorRooms);
+                break;
+              }
+            }
+          } catch (err) {
+            console.error("Failed to load room hierarchy:", err);
+          }
+        }
+      }
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -146,6 +243,7 @@ const Schedules = () => {
     days_of_week: form.days.join(","),
     device_ids: form.device_ids,
     action: form.action,
+    room_id: selectedRoom || undefined,
   });
 
   const handleDeviceToggle = (deviceId) => {
@@ -181,6 +279,10 @@ const Schedules = () => {
       }
 
       setIsModalOpen(false);
+      // Reset room selection state for next use
+      setSelectedZone(null);
+      setSelectedFloor(null);
+      setSelectedRoom(urlRoomId);
       await loadSchedules();
     } catch (err) {
       setFormError(err.message || "Failed to save schedule");
@@ -220,7 +322,62 @@ const Schedules = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+          <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
+            <select
+              value={selectedZone || ""}
+              onChange={(e) => {
+                const zoneId = e.target.value ? Number(e.target.value) : null;
+                setSelectedZone(zoneId);
+                setSelectedFloor(null);
+                setSelectedRoom(null);
+              }}
+              className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 text-sm font-medium"
+            >
+              <option value="">All Areas</option>
+              {zones.map((zone) => (
+                <option key={zone.zone_id} value={zone.zone_id}>
+                  {zone.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedFloor || ""}
+              onChange={(e) => {
+                const floorId = e.target.value ? Number(e.target.value) : null;
+                setSelectedFloor(floorId);
+                setSelectedRoom(null);
+              }}
+              disabled={!selectedZone}
+              className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 text-sm font-medium disabled:bg-gray-100 disabled:text-gray-400"
+            >
+              <option value="">All Floors</option>
+              {floors.map((floor) => (
+                <option key={floor.floor_id} value={floor.floor_id}>
+                  Floor {floor.floor_number}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedRoom || ""}
+              onChange={(e) => {
+                const roomNum = e.target.value ? Number(e.target.value) : null;
+                setSelectedRoom(roomNum);
+              }}
+              disabled={!selectedFloor}
+              className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 text-sm font-medium disabled:bg-gray-100 disabled:text-gray-400"
+            >
+              <option value="">All Rooms</option>
+              {rooms.map((room) => (
+                <option key={room.room_id} value={room.room_id}>
+                  {room.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-1 rounded-xl bg-white p-1 border border-[#e3dbf2]">
             {[
               { key: "all", label: "All" },
@@ -296,6 +453,13 @@ const Schedules = () => {
                   </div>
 
                   <div className="mb-4 space-y-2">
+                    {item.room_name && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-500">Room:</span>
+                        <span className="font-medium text-[#24124d]">{item.room_name}</span>
+                      </div>
+                    )}
+                    
                     <div className="flex flex-wrap gap-1">
                       {DAY_OPTIONS.map((day) => {
                         const isActive = item.days_of_week?.includes(day);
@@ -314,7 +478,7 @@ const Schedules = () => {
                         item.action === "POWER_OFF" ? "bg-rose-500/20 text-rose-300" : 
                         "bg-amber-500/20 text-amber-300"
                       }`}>
-                        {item.action || "--"}
+                        {getActionLabel(item.action)}
                       </span>
                     </div>
                     
@@ -361,7 +525,7 @@ const Schedules = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <label className="flex flex-col gap-1 text-sm font-medium text-[#2f2651] md:col-span-2">
               Name
               <input
@@ -370,6 +534,68 @@ const Schedules = () => {
                 className="rounded-xl border border-[#d6cdee] px-3 py-2"
                 placeholder="Night cooling"
               />
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-[#2f2651]">
+              Area (Khu vực)
+              <select
+                value={selectedZone || ""}
+                onChange={(e) => {
+                  const zoneId = e.target.value ? Number(e.target.value) : null;
+                  setSelectedZone(zoneId);
+                  setSelectedFloor(null);
+                  setSelectedRoom(null);
+                }}
+                className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2"
+              >
+                <option value="">Select Area</option>
+                {zones.map((zone) => (
+                  <option key={zone.zone_id} value={zone.zone_id}>
+                    {zone.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-[#2f2651]">
+              Floor (Tầng)
+              <select
+                value={selectedFloor || ""}
+                onChange={(e) => {
+                  const floorId = e.target.value ? Number(e.target.value) : null;
+                  setSelectedFloor(floorId);
+                  setSelectedRoom(null);
+                }}
+                disabled={!selectedZone}
+                className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">Select Floor</option>
+                {floors.map((floor) => (
+                  <option key={floor.floor_id} value={floor.floor_id}>
+                    Floor {floor.floor_number}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-1 text-sm font-medium text-[#2f2651]">
+              Room (Phòng)
+              <select
+                value={selectedRoom || ""}
+                onChange={(e) => {
+                  const roomNum = e.target.value ? Number(e.target.value) : null;
+                  setSelectedRoom(roomNum);
+                }}
+                disabled={!selectedFloor}
+                className="rounded-xl border border-[#d6cdee] bg-white px-3 py-2 disabled:bg-gray-100 disabled:text-gray-400"
+              >
+                <option value="">Select Room</option>
+                {rooms.map((room) => (
+                  <option key={room.room_id} value={room.room_id}>
+                    {room.name}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="flex flex-col gap-1 text-sm font-medium text-[#2f2651]">

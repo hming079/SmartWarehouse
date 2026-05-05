@@ -100,11 +100,13 @@ GO
 
 CREATE TABLE dbo.Shedules (
   shedule_id INT NOT NULL PRIMARY KEY,
-  device_id INT NULL,
   name NVARCHAR(255),
-  scheduled_time TIME,
-  schedule_days NVARCHAR(255),
-  action_id INT NULL
+  start_time TIME,
+  end_time TIME,
+  days_of_week NVARCHAR(255),
+  action NVARCHAR(20),
+  is_active BIT NOT NULL DEFAULT (1),
+  room_id INT NULL
 );
 GO
 
@@ -347,4 +349,55 @@ BEGIN
         FROM @DevicesToUpdate tu;
     END
 END;
+GO
+
+
+USE SmartWarehouse;
+GO
+
+-- 1) Drop old FKs that depend on old columns (if they exist)
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Shedules_Device')
+  ALTER TABLE dbo.Shedules DROP CONSTRAINT FK_Shedules_Device;
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Shedules_Action')
+  ALTER TABLE dbo.Shedules DROP CONSTRAINT FK_Shedules_Action;
+GO
+
+-- 2) Add new columns if missing
+IF COL_LENGTH('dbo.Shedules', 'name') IS NULL
+  ALTER TABLE dbo.Shedules ADD name NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.Shedules', 'start_time') IS NULL
+  ALTER TABLE dbo.Shedules ADD start_time TIME NULL;
+IF COL_LENGTH('dbo.Shedules', 'end_time') IS NULL
+  ALTER TABLE dbo.Shedules ADD end_time TIME NULL;
+IF COL_LENGTH('dbo.Shedules', 'days_of_week') IS NULL
+  ALTER TABLE dbo.Shedules ADD days_of_week NVARCHAR(255) NULL;
+IF COL_LENGTH('dbo.Shedules', 'action') IS NULL
+  ALTER TABLE dbo.Shedules ADD action NVARCHAR(20) NULL;
+IF COL_LENGTH('dbo.Shedules', 'room_id') IS NULL
+  ALTER TABLE dbo.Shedules ADD room_id INT NULL;
+IF COL_LENGTH('dbo.Shedules', 'is_active') IS NULL
+  ALTER TABLE dbo.Shedules ADD is_active BIT NULL;
+GO
+
+
+
+-- 4) Optional: add FK for room_id
+IF COL_LENGTH('dbo.Shedules', 'room_id') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Shedules_Room')
+BEGIN
+  ALTER TABLE dbo.Shedules
+  ADD CONSTRAINT FK_Shedules_Room
+  FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
+END
+GO
+
+-- 5) Optional: remove old columns after migration
+IF COL_LENGTH('dbo.Shedules', 'device_id') IS NOT NULL
+  ALTER TABLE dbo.Shedules DROP COLUMN device_id;
+IF COL_LENGTH('dbo.Shedules', 'scheduled_time') IS NOT NULL
+  ALTER TABLE dbo.Shedules DROP COLUMN scheduled_time;
+IF COL_LENGTH('dbo.Shedules', 'schedule_days') IS NOT NULL
+  ALTER TABLE dbo.Shedules DROP COLUMN schedule_days;
+IF COL_LENGTH('dbo.Shedules', 'action_id') IS NOT NULL
+  ALTER TABLE dbo.Shedules DROP COLUMN action_id;
 GO

@@ -265,22 +265,28 @@ const RoomDetail = () => {
   }, [payload]);
 
   const roomAwareAutomation = useMemo(() => {
-  const zoneName = String(stateZone?.name || "").trim().toLowerCase();
-  const roomName = String(stateRoom?.name || roomTitle || "").trim().toLowerCase();
+    const zoneName = String(stateZone?.name || "").trim().toLowerCase();
+    const roomName = String(stateRoom?.name || roomTitle || "").trim().toLowerCase();
+    const roomIdText = selectedRoomId ? String(selectedRoomId) : "";
 
-  return automationItems
-    .map((rule) => ({
-      ...rule,
-      is_active: normalizeBoolean(rule.is_active),
-      apply_to: String(rule.apply_to || ""),
-      displayCondition: `${rule.metric || ""} ${rule.compare_op || ""} ${rule.threshold_value ?? ""}`.trim(),
-    }))
-    .filter((rule) => {
-      const target = String(rule.apply_to || "").trim().toLowerCase();
-      if (!target) return false;
-      return target.includes(zoneName) || target.includes(roomName);
-    });
-}, [automationItems, stateZone?.name, stateRoom?.name, roomTitle]);
+    return automationItems
+      .map((rule) => ({
+        ...rule,
+        is_active: normalizeBoolean(rule.is_active),
+        apply_to: String(rule.apply_to || ""),
+        displayCondition: `${rule.metric || ""} ${rule.compare_op || ""} ${rule.threshold_value ?? ""}`.trim(),
+      }))
+      .filter((rule) => {
+        const targetRaw = String(rule.apply_to || "").trim();
+        const target = targetRaw.toLowerCase();
+        if (!target) return false;
+
+        // Support rules targeting by room id (exact) and by room/zone name (contains)
+        const idMatched = roomIdText && targetRaw === roomIdText;
+        const nameMatched = (roomName && target.includes(roomName)) || (zoneName && target.includes(zoneName));
+        return Boolean(idMatched || nameMatched);
+      });
+  }, [automationItems, stateZone?.name, stateRoom?.name, roomTitle, selectedRoomId]);
 
   const activeAutomationCount = roomAwareAutomation.filter((item) => item.is_active).length;
 
