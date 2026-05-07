@@ -54,6 +54,15 @@ async function patchResolveAlert(req, res, next) {
   }
 }
 
+async function patchToggleResolveAlert(req, res, next) {
+  try {
+    const data = await alertsService.toggleResolveAlert(req.params.id);
+    res.json({ ok: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function postAssignAlert(req, res, next) {
   try {
     const data = await alertsService.assignAlert(req.params.id, req.body || {});
@@ -68,5 +77,6 @@ module.exports = {
   getAlertById,
   patchAcknowledgeAlert,
   patchResolveAlert,
+  patchToggleResolveAlert,
   postAssignAlert,
 };

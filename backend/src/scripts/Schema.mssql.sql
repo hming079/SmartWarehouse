@@ -111,25 +111,30 @@ CREATE TABLE dbo.Shedules (
 GO
 
 CREATE TABLE dbo.Actions (
-  action_id INT NOT NULL PRIMARY KEY,
-  action_name NVARCHAR(255) NOT NULL
+  action_id INT NOT NULL PRIMARY KEY IDENTITY(1,1),
+  action_name NVARCHAR(255) NOT NULL UNIQUE
 );
 GO
 
 CREATE TABLE dbo.AutomationRules (
-  rule_id INT NOT NULL PRIMARY KEY,
+  rule_id INT NOT NULL PRIMARY KEY IDENTITY(1,1),
   name NVARCHAR(255) NOT NULL,
-  apply_to NVARCHAR(255) NOT NULL,
-  food_type NVARCHAR(255) NOT NULL,
+  apply_to NVARCHAR(255) NULL,
+  food_type NVARCHAR(255) NULL,
   metric NVARCHAR(50) NOT NULL,
   compare_op NVARCHAR(20) NOT NULL,
   threshold_value FLOAT NOT NULL,
-  action_name NVARCHAR(255) NOT NULL,
+  action_name NVARCHAR(255) NULL,
   action_device_ids NVARCHAR(MAX) NULL,
   action_device_types NVARCHAR(MAX) NULL,
   alert_level NVARCHAR(20) NOT NULL,
   is_active BIT NOT NULL DEFAULT (1),
-  created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME())
+  created_at DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
+  room_id INT NULL,
+  food_type_id INT NULL,
+  action_id INT NULL,
+  action_mode NVARCHAR(20) NULL,
+  FOREIGN KEY (action_id) REFERENCES dbo.Actions(action_id)
 );
 GO
 
@@ -169,6 +174,7 @@ GO
 CREATE TABLE dbo.Alerts (
   alert_id INT NOT NULL PRIMARY KEY,
   threshold_id INT NULL,
+  rule_id INT NULL,
   triggered_value FLOAT,
   message NVARCHAR(MAX),
   severity NVARCHAR(20) CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
@@ -248,12 +254,31 @@ ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Shedule FOREIGN KEY (shedule_i
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
 ALTER TABLE dbo.SensorData ADD CONSTRAINT FK_SensorData_Sensor FOREIGN KEY (sensor_id) REFERENCES dbo.Sensors(sensor_id) ON DELETE CASCADE;
 ALTER TABLE dbo.Alerts ADD CONSTRAINT FK_Alerts_Threshold FOREIGN KEY (threshold_id) REFERENCES dbo.Threshold(threshold_id);
+ALTER TABLE dbo.Alerts ADD CONSTRAINT FK_Alerts_AutomationRule FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id) ON DELETE SET NULL;
 ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_Sensor FOREIGN KEY (sensor_id) REFERENCES dbo.Sensors(sensor_id);
 ALTER TABLE dbo.ActionLog ADD CONSTRAINT FK_ActionLog_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id);
 ALTER TABLE dbo.AlertSubscriptions ADD CONSTRAINT FK_AlertSubscriptions_Alert FOREIGN KEY (alert_id) REFERENCES dbo.Alerts(alert_id) ON DELETE CASCADE;
 ALTER TABLE dbo.AlertSubscriptions ADD CONSTRAINT FK_AlertSubscriptions_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id) ON DELETE CASCADE;
 ALTER TABLE dbo.UserPermissionAssignment ADD CONSTRAINT FK_UserPermissionAssignment_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id) ON DELETE CASCADE;
 ALTER TABLE dbo.UserPermissionAssignment ADD CONSTRAINT FK_UserPermissionAssignment_User FOREIGN KEY (user_id) REFERENCES dbo.Users(user_id) ON DELETE CASCADE;
+
+-- Automation Rules normalized schema constraints
+ALTER TABLE dbo.AutomationRules ADD CONSTRAINT FK_AutomationRules_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id) ON DELETE SET NULL;
+ALTER TABLE dbo.AutomationRules ADD CONSTRAINT FK_AutomationRules_FoodType FOREIGN KEY (food_type_id) REFERENCES dbo.FoodTypes(type_id) ON DELETE SET NULL;
+
+-- Create AutomationRuleDevices join table for many-to-many relationship
+IF OBJECT_ID(N'dbo.AutomationRuleDevices', N'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.AutomationRuleDevices (
+    rule_id INT NOT NULL,
+    device_id INT NOT NULL,
+    PRIMARY KEY (rule_id, device_id),
+    CONSTRAINT FK_AutomationRuleDevices_Rule
+      FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id) ON DELETE CASCADE,
+    CONSTRAINT FK_AutomationRuleDevices_Device
+      FOREIGN KEY (device_id) REFERENCES dbo.Devices(device_id) ON DELETE CASCADE
+  );
+END
 GO
 
 EXEC sp_addextendedproperty
@@ -401,3 +426,8 @@ IF COL_LENGTH('dbo.Shedules', 'schedule_days') IS NOT NULL
 IF COL_LENGTH('dbo.Shedules', 'action_id') IS NOT NULL
   ALTER TABLE dbo.Shedules DROP COLUMN action_id;
 GO
+
+ALTER TABLE dbo.Alerts
+ADD rule_id INT NULL,
+    CONSTRAINT FK_Alerts_AutomationRule 
+    FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id);

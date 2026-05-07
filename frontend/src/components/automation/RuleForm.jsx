@@ -11,6 +11,7 @@ const RuleForm = ({
   rooms = [],
   deviceOptions = [],
   deviceTypeOptions = [],
+  actions = [],
   isEditing = false,
 }) => {
   const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
@@ -163,35 +164,27 @@ const RuleForm = ({
 
         {form.actionType !== "alert" && (
           <>
-            <label className="text-sm font-medium text-gray-700">
-              Action
+            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+              Select Action
               <select
                 className={inputClass}
-                value={form.actionOnOff || "on"}
-                onChange={(e) => handleChange("actionOnOff", e.target.value)}
+                value={form.actionId ? String(form.actionId) : ""}
+                onChange={(e) => {
+                  const actionId = e.target.value ? Number(e.target.value) : null;
+                  handleChange("actionId", actionId);
+                }}
               >
-                <option value="on">Bật (Turn on)</option>
-                <option value="off">Tắt (Turn off)</option>
-              </select>
-            </label>
-
-            <label className="text-sm font-medium text-gray-700">
-              Device type
-              <select
-                className={inputClass}
-                value={form.actionDeviceType || "fan"}
-                onChange={(e) => handleChange("actionDeviceType", e.target.value)}
-              >
-                {(deviceTypeOptions.length ? deviceTypeOptions : ["fan"]).map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                <option value="">-- Choose an action --</option>
+                {actions.map((action) => (
+                  <option key={action.action_id} value={String(action.action_id)}>
+                    {action.action_name}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Devices
+              Select Devices
               <select
                 multiple
                 className={`${inputClass} h-28`}
@@ -200,7 +193,7 @@ const RuleForm = ({
                   handleChange("actionDeviceIds", Array.from(e.target.selectedOptions).map((opt) => opt.value))
                 }
               >
-                {filteredDevices.map((device) => (
+                {deviceOptions.map((device) => (
                   <option key={device.deviceId || device.id} value={String(device.deviceId || device.id)}>
                     {device.name} (ID: {device.deviceId || device.id})
                   </option>

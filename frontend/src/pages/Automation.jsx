@@ -21,7 +21,7 @@ const baseForm = {
   metric: "Temperature",
   compare: "Lớn hơn",
   value: "",
-  action: "",
+  actionId: null,
   actionType: "action",
   actionOnOff: "on",
   actionDeviceType: "fan",
@@ -35,24 +35,22 @@ const Automation = () => {
   const [zones, setZones] = useState([]);
   const [floors, setFloors] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [allRooms, setAllRooms] = useState([]); // For lookup purposes
+  const [allRooms, setAllRooms] = useState([]);
   const [devices, setDevices] = useState([]);
+  const [actions, setActions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(baseForm);
 
   const mapRule = (r) => {
-    // Find room by ID in the allRooms lookup
-    const roomData = allRooms.find(room => room.room_id === Number(r.apply_to));
-    
     return {
       id: r.rule_id,
       name: r.name,
-      applyTo: roomData?.name || r.apply_to,
-      foodType: roomData?.food_type_name || r.food_type,
+      applyTo: r.room_name || r.apply_to,
+      foodType: r.food_type_name || r.food_type,
       condition: `${r.metric} ${r.compare_op} ${r.threshold_value}`,
-      action: r.action_name,
+      action: r.action_name_normalized || r.action_name,
       alertLevel: r.alert_level,
       active: Boolean(r.is_active),
       raw: r,
@@ -64,20 +62,12 @@ const Automation = () => {
     setRules((res.data || []).map(mapRule));
   };
 
-  // Re-map rules when allRooms changes
+  // Re-map rules when data changes (no longer needed since API returns names)
   useEffect(() => {
     if (rules.length > 0) {
-      setRules(prevRules => prevRules.map((r) => {
-        const rawData = r.raw;
-        const roomData = allRooms.find(room => room.room_id === Number(rawData.apply_to));
-        return {
-          ...r,
-          applyTo: roomData?.name || rawData.apply_to,
-          foodType: roomData?.food_type_name || rawData.food_type,
-        };
-      }));
+      // API now returns room_name and action_name_normalized directly, so no remapping needed
     }
-  }, [allRooms]);
+  }, []);
 
   // Fetch zones and all rooms when location changes
   useEffect(() => {
@@ -157,12 +147,14 @@ const Automation = () => {
     const init = async () => {
       try {
         setLoading(true);
-        const [rulesRes, devicesRes] = await Promise.all([
+        const [rulesRes, devicesRes, actionsRes] = await Promise.all([
           api.getAutomationRules(),
           api.getDevices(),
+          api.getActions?.() || Promise.resolve({ data: [] }),
         ]);
         setRules((rulesRes.data || []).map(mapRule));
         setDevices(devicesRes.data || []);
+        setActions(actionsRes.data || []);
       } catch (err) {
         console.error("Load automation page failed:", err.message);
       } finally {
@@ -172,17 +164,11 @@ const Automation = () => {
     init();
   }, []);
 
-  const buildActionName = (f) => `${f.actionOnOff === "off" ? "Tắt" : "Bật"} ${f.actionDeviceType || ""} ${(f.actionDeviceIds || []).map((id) => `#${id}`).join(",")}`.trim();
-
   const handleSave = async (formData) => {
     try {
-      // Use room name for apply_to if a room is selected, otherwise use empty string
-      const applyTo = formData.roomId ? String(formData.roomId) : formData.applyTo;
-
       const payload = {
         name: formData.name,
-        apply_to: applyTo,
-        food_type: "Rau củ",
+        room_id: formData.roomId || null,
         metric: formData.metric,
         compare_op: compareMap[formData.compare] || ">",
         threshold_value: Number(formData.value),
@@ -191,13 +177,11 @@ const Automation = () => {
       };
 
       if (formData.actionType === "alert") {
-        payload.action_name = "";
-        payload.action_device_ids = "";
-        payload.action_device_types = "";
+        payload.action_id = null;
+        payload.device_ids = [];
       } else {
-        payload.action_name = formData.action || buildActionName(formData);
-        payload.action_device_ids = (formData.actionDeviceIds || []).join(",");
-        payload.action_device_types = formData.actionDeviceType || "";
+        payload.action_id = formData.actionId || null;
+        payload.device_ids = (formData.actionDeviceIds || []).map(Number).filter(id => id > 0);
       }
 
       if (editingId) await api.updateAutomationRule(editingId, payload);
@@ -216,7 +200,7 @@ const Automation = () => {
     const raw = rule.raw || {};
     setEditingId(rule.id);
     
-    const roomId = raw.apply_to ? Number(raw.apply_to) : null;
+    const roomId = raw.room_id || (raw.apply_to ? Number(raw.apply_to) : null);
     let selectedZoneId = null;
     let selectedFloorId = null;
 
@@ -248,6 +232,10 @@ const Automation = () => {
       }
     }
 
+    const deviceIds = raw.action_device_ids_normalized 
+      ? raw.action_device_ids_normalized.split(',').filter(id => id).map(String)
+      : [];
+
     setForm({
       name: raw.name || "",
       locationId: null,
@@ -258,11 +246,11 @@ const Automation = () => {
       metric: raw.metric || "Temperature",
       compare: reverseCompareMap[raw.compare_op] || "Lớn hơn",
       value: raw.threshold_value ?? "",
-      action: raw.action_name || "",
-      actionType: raw.action_name ? "action" : "alert",
-      actionOnOff: raw.action_name && raw.action_name.toLowerCase().includes("tắt") ? "off" : "on",
-      actionDeviceType: raw.action_device_types || "fan",
-      actionDeviceIds: raw.action_device_ids ? String(raw.action_device_ids).split(",") : [],
+      actionId: raw.action_id || null,
+      actionType: raw.action_id ? "action" : "alert",
+      actionOnOff: "on",
+      actionDeviceType: "fan",
+      actionDeviceIds: deviceIds,
       alertLevel: raw.alert_level || "Medium",
       active: Boolean(raw.is_active),
     });
@@ -319,6 +307,7 @@ const Automation = () => {
           rooms={rooms}
           deviceOptions={devices}
           deviceTypeOptions={DEVICE_TYPE_OPTIONS}
+          actions={actions}
           isEditing={Boolean(editingId)}
           onCancel={() => setIsModalOpen(false)}
           onSave={handleSave}

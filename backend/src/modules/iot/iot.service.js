@@ -2,6 +2,7 @@ const axios = require("axios");
 const { sql, getPool } = require("../../../db");
 const automationService = require("../automation/automation.service");
 const devicesService = require("../devices/devices.service");
+const alertsService = require("../alerts/alerts.service");
 
 const BASE_URL = (process.env.TB_BASE_URL || "https://app.coreiot.io").replace(/\/+$/, "");
 const TB_USERNAME = process.env.TB_USERNAME;
@@ -202,6 +203,25 @@ async function executeAutomationRules({ roomId, payload, switches }) {
     const metricValue = getAutomationMetricValue(payload, rule?.metric);
     if (!shouldTriggerAutomation(rule, metricValue)) {
       continue;
+    }
+
+    // Create alert when automation rule is triggered (only if no open alert exists)
+    try {
+      const hasOpen = await alertsService.hasOpenAlertForRule(rule?.rule_id);
+      if (!hasOpen) {
+        const severity = String(rule?.alert_level || "MEDIUM").toUpperCase();
+        const message = `${rule.name}: ${rule.metric} ${rule.compare_op} ${rule.threshold_value} (actual: ${Number(metricValue).toFixed(2)})`;
+        await alertsService.createAlert({
+          thresholdId: rule?.threshold_id || null,
+          triggeredValue: metricValue,
+          message,
+          severity,
+          ruleId: rule?.rule_id || null,
+        });
+      }
+    } catch (alertErr) {
+      console.warn(`Failed to create alert for rule ${rule?.rule_id}:`, alertErr.message);
+      // Don't stop execution if alert creation fails
     }
 
     const desiredStatus = resolveAutomationTargetStatus(rule);

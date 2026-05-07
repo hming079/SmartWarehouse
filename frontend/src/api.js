@@ -139,4 +139,19 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  getAlerts: ({ roomId, status, severity, page, pageSize } = {}) => {
+    const params = new URLSearchParams();
+    if (roomId) params.set("roomId", String(roomId));
+    if (status) params.set("status", status);
+    if (severity) params.set("severity", severity);
+    if (page) params.set("page", String(page));
+    if (pageSize) params.set("pageSize", String(pageSize));
+    const query = params.toString();
+    return request(`/alerts${query ? `?${query}` : ""}`);
+  },
+  getAlertById: (id) => request(`/alerts/${id}`),
+  acknowledgeAlert: (id) => request(`/alerts/${id}/ack`, { method: "PATCH" }),
+  resolveAlert: (id) => request(`/alerts/${id}/resolve`, { method: "PATCH" }),
+  assignAlert: (id, payload) => request(`/alerts/${id}/assign`, { method: "POST", body: JSON.stringify(payload) }),
 };

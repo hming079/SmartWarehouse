@@ -9,6 +9,8 @@ export const COMPARE_OPTIONS = [
   { value: "<", label: "Nhỏ hơn" },
   { value: "=", label: "Bằng" },
 ];
+export const ALERT_STATUS_OPTIONS = ["all", "open", "resolved"];
+export const SEVERITY_OPTIONS = ["all", "LOW", "MEDIUM", "HIGH"];
 
 // Factory functions
 export const createInitialScheduleForm = () => ({
@@ -107,6 +109,12 @@ export const useRoomDetail = (selectedRoomId, payload) => {
   const [auditActionFilter, setAuditActionFilter] = useState("");
   const [expandedAuditId, setExpandedAuditId] = useState(null);
 
+  // Alerts state
+  const [alertsItems, setAlertsItems] = useState([]);
+  const [alertsFilter, setAlertsFilter] = useState("open");
+  const [alertsSeverityFilter, setAlertsSeverityFilter] = useState("all");
+  const [expandedAlertId, setExpandedAlertId] = useState(null);
+
   // Loading/Error state
   const [metaLoading, setMetaLoading] = useState(false);
   const [metaError, setMetaError] = useState("");
@@ -121,14 +129,16 @@ export const useRoomDetail = (selectedRoomId, payload) => {
         schedulesData: [],
         scheduleDeviceData: [],
         auditData: [],
+        alertsData: [],
       };
     }
 
-    const [automationRes, schedulesRes, scheduleDevicesRes, auditRes] = await Promise.all([
+    const [automationRes, schedulesRes, scheduleDevicesRes, auditRes, alertsRes] = await Promise.all([
       api.getAutomationRules(),
       api.getSchedules({ roomId: selectedRoomId }),
       api.getScheduleDevices({ roomId: selectedRoomId }),
       api.getDeviceLogs({ roomId: selectedRoomId, page: 1, pageSize: 20 }),
+      api.getAlerts({ roomId: selectedRoomId, status: "open", page: 1, pageSize: 20 }),
     ]);
 
     return {
@@ -136,6 +146,7 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       schedulesData: schedulesRes?.data || [],
       scheduleDeviceData: scheduleDevicesRes?.data || [],
       auditData: auditRes?.data || [],
+      alertsData: alertsRes?.data || [],
     };
   };
 
@@ -144,13 +155,14 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       setMetaLoading(true);
       setMetaError("");
       setMetaInfo("");
-      const { automationData, schedulesData, scheduleDeviceData, auditData } = await fetchRoomMeta();
+      const { automationData, schedulesData, scheduleDeviceData, auditData, alertsData } = await fetchRoomMeta();
       setAutomationItems(automationData);
       setSchedulesItems(schedulesData);
       setScheduleDeviceOptions(scheduleDeviceData);
       setAuditItems(auditData);
+      setAlertsItems(alertsData);
     } catch (err) {
-      setMetaError(err.message || "Khong the tai du lieu automation/schedule/device logs");
+      setMetaError(err.message || "Khong the tai du lieu automation/schedule/device logs/alerts");
     } finally {
       setMetaLoading(false);
     }
@@ -180,16 +192,17 @@ export const useRoomDetail = (selectedRoomId, payload) => {
         setMetaLoading(true);
         setMetaError("");
 
-        const { automationData, schedulesData, scheduleDeviceData, auditData } = await fetchRoomMeta();
+        const { automationData, schedulesData, scheduleDeviceData, auditData, alertsData } = await fetchRoomMeta();
         if (cancelled) return;
 
         setAutomationItems(automationData);
         setSchedulesItems(schedulesData);
         setScheduleDeviceOptions(scheduleDeviceData);
         setAuditItems(auditData);
+        setAlertsItems(alertsData);
       } catch (err) {
         if (!cancelled) {
-          setMetaError(err.message || "Khong the tai du lieu automation/schedule/device logs");
+          setMetaError(err.message || "Khong the tai du lieu automation/schedule/device logs/alerts");
         }
       } finally {
         if (!cancelled) {
@@ -202,6 +215,30 @@ export const useRoomDetail = (selectedRoomId, payload) => {
     return () => {
       cancelled = true;
     };
+  }, [selectedRoomId]);
+
+  // Auto-poll alerts every 5 seconds for real-time updates
+  useEffect(() => {
+    if (!selectedRoomId) return;
+    
+    const pollAlerts = async () => {
+      try {
+        const alertsRes = await api.getAlerts({ 
+          roomId: selectedRoomId, 
+          status: "all", 
+          page: 1, 
+          pageSize: 20 
+        });
+        setAlertsItems(alertsRes?.data || []);
+      } catch (err) {
+        // Silent fail on polling, don't show error message
+        console.warn("Failed to poll alerts:", err.message);
+      }
+    };
+
+    // Poll every 5 seconds
+    const interval = setInterval(pollAlerts, 5000);
+    return () => clearInterval(interval);
   }, [selectedRoomId]);
 
   // Automation handlers
@@ -460,6 +497,42 @@ export const useRoomDetail = (selectedRoomId, payload) => {
     }
   };
 
+  // Alert handlers
+  const handleResolveAlert = async (alertId) => {
+    try {
+      setBusyKey(`alert-resolve-${alertId}`);
+      await api.resolveAlert(alertId);
+      setAlertsItems((prev) =>
+        prev.map((item) =>
+          item.id === alertId
+            ? {
+                ...item,
+                status: "RESOLVED",
+                is_resolved: 1,
+              }
+            : item,
+        ),
+      );
+      setMetaInfo("Alert resolved successfully");
+    } catch (err) {
+      setMetaError(err.message || "Khong the resolve alert");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
+  const handleAcknowledgeAlert = async (alertId) => {
+    try {
+      setBusyKey(`alert-ack-${alertId}`);
+      await api.acknowledgeAlert(alertId);
+      setMetaInfo("Alert acknowledged successfully");
+    } catch (err) {
+      setMetaError(err.message || "Khong the acknowledge alert");
+    } finally {
+      setBusyKey("");
+    }
+  };
+
   // Computed values
   const filteredSchedules = useMemo(() => {
     if (scheduleFilter === "active") {
@@ -488,6 +561,24 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       return searchable.includes(keyword);
     });
   }, [auditItems, auditActionFilter]);
+
+  const filteredAlerts = useMemo(() => {
+    let result = alertsItems;
+    
+    // Filter by status
+    if (alertsFilter === "open") {
+      result = result.filter((item) => item.status === "OPEN" || !normalizeBoolean(item.is_resolved));
+    } else if (alertsFilter === "resolved") {
+      result = result.filter((item) => item.status === "RESOLVED" || normalizeBoolean(item.is_resolved));
+    }
+    
+    // Filter by severity
+    if (alertsSeverityFilter !== "all") {
+      result = result.filter((item) => String(item.severity || "LOW").toUpperCase() === alertsSeverityFilter.toUpperCase());
+    }
+    
+    return result;
+  }, [alertsItems, alertsFilter, alertsSeverityFilter]);
 
   return {
     // Automation
@@ -541,6 +632,18 @@ export const useRoomDetail = (selectedRoomId, payload) => {
     setAuditActionFilter,
     handleExpandAudit,
     handleExportAudit,
+
+    // Alerts
+    alertsItems,
+    alertsFilter,
+    alertsSeverityFilter,
+    expandedAlertId,
+    filteredAlerts,
+    setAlertsFilter,
+    setAlertsSeverityFilter,
+    setExpandedAlertId,
+    handleResolveAlert,
+    handleAcknowledgeAlert,
 
     // Loading/Error
     metaLoading,
