@@ -6,6 +6,9 @@ const RuleRow = ({ rule, onDelete, onToggle, onEdit }) => {
       <td className="px-4 py-4 text-gray-700">{rule.foodType}</td>
       <td className="px-4 py-4 text-gray-700">{rule.condition}</td>
       <td className="px-4 py-4 text-gray-700">{rule.action}</td>
+      <td className="px-4 py-4 text-gray-700">
+        {rule.devices && rule.devices.length > 0 ? rule.devices.join(", ") : "--"}
+      </td>
       <td className="px-4 py-4 text-gray-700">{rule.alertLevel || "--"}</td>
       <td className="px-4 py-4">
         <span

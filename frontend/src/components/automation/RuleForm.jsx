@@ -11,16 +11,12 @@ const RuleForm = ({
   rooms = [],
   deviceOptions = [],
   deviceTypeOptions = [],
-  actions = [],
   isEditing = false,
 }) => {
   const handleChange = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
   const handleSave = () => onSave?.(form);
 
   const selectedType = form.actionDeviceType || "fan";
-  const filteredDevices = deviceOptions.filter(
-    (d) => String(d.type || "").toLowerCase() === String(selectedType).toLowerCase()
-  );
 
   return (
     <div>
@@ -165,26 +161,33 @@ const RuleForm = ({
         {form.actionType !== "alert" && (
           <>
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Select Action
+              Action mode
               <select
                 className={inputClass}
-                value={form.actionId ? String(form.actionId) : ""}
-                onChange={(e) => {
-                  const actionId = e.target.value ? Number(e.target.value) : null;
-                  handleChange("actionId", actionId);
-                }}
+                value={form.actionOnOff || "on"}
+                onChange={(e) => handleChange("actionOnOff", e.target.value)}
               >
-                <option value="">-- Choose an action --</option>
-                {actions.map((action) => (
-                  <option key={action.action_id} value={String(action.action_id)}>
-                    {action.action_name}
-                  </option>
+                <option value="on">Bật</option>
+                <option value="off">Tắt</option>
+              </select>
+            </label>
+
+            <label className="text-sm font-medium text-gray-700 md:col-span-1">
+              Device type
+              <select
+                className={inputClass}
+                value={form.actionDeviceType || ""}
+                onChange={(e) => handleChange("actionDeviceType", e.target.value)}
+              >
+                <option value="">Select type</option>
+                {deviceTypeOptions.map((t) => (
+                  <option key={t} value={t}>{t}</option>
                 ))}
               </select>
             </label>
 
             <label className="text-sm font-medium text-gray-700 md:col-span-2">
-              Select Devices
+              Select Devices (Optional)
               <select
                 multiple
                 className={`${inputClass} h-28`}
@@ -193,14 +196,18 @@ const RuleForm = ({
                   handleChange("actionDeviceIds", Array.from(e.target.selectedOptions).map((opt) => opt.value))
                 }
               >
-                {deviceOptions.map((device) => (
-                  <option key={device.deviceId || device.id} value={String(device.deviceId || device.id)}>
-                    {device.name} (ID: {device.deviceId || device.id})
-                  </option>
-                ))}
+                {deviceOptions.length === 0 ? (
+                  <option disabled>No devices available</option>
+                ) : (
+                  deviceOptions.map((device) => (
+                    <option key={device.deviceId || device.id} value={String(device.deviceId || device.id)}>
+                      {device.name} (ID: {device.deviceId || device.id})
+                    </option>
+                  ))
+                )}
               </select>
               <span className="mt-1 block text-xs text-gray-500">
-                (Giữ Ctrl/Command để chọn nhiều thiết bị)
+                {deviceOptions.length === 0 ? "No devices available" : "(Giữ Ctrl/Command để chọn nhiều thiết bị)"}
               </span>
             </label>
           </>
@@ -214,6 +221,24 @@ const RuleForm = ({
           />
           Active
         </label>
+
+        {/* Alert-only Configuration */}
+        {form.actionType === "alert" && (
+          <div className="md:col-span-3 rounded-lg bg-blue-50 p-4 border border-blue-200">
+            <p className="text-sm font-medium text-blue-900">
+              ℹ️ Alert-Only Mode: When condition is met, only an alert will be triggered.
+            </p>
+          </div>
+        )}
+
+        {/* Action Configuration */}
+        {form.actionType === "action" && (
+          <div className="md:col-span-3 rounded-lg bg-purple-50 p-4 border border-purple-200">
+            <p className="text-sm font-medium text-purple-900">
+              ⚡ Action Mode: Select Bật or Tắt for the linked devices.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex justify-end gap-3">

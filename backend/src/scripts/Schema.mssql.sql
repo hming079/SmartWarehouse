@@ -431,3 +431,10 @@ ALTER TABLE dbo.Alerts
 ADD rule_id INT NULL,
     CONSTRAINT FK_Alerts_AutomationRule 
     FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id);
+
+alter table automationrules
+alter column apply_to nvarchar(255) null;
+alter table automationrules
+alter column food_type nvarchar(255) null;
+alter table automationrules
+alter column action_name nvarchar(255) null;

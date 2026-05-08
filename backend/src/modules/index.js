@@ -12,6 +12,7 @@ const floorRoutes = require("./area/floor/floor.route");
 const roomRoutes = require("./area/room/room.route");
 const foodTypeRoutes = require("./area/food-type/food-type.route");
 const automationRoutes = require("./automation/automation.route");
+const actionsRoutes = require("./actions/actions.route");
 
 module.exports = {
   userRoutes,
@@ -28,4 +29,5 @@ module.exports = {
   roomRoutes,
   foodTypeRoutes,
   automationRoutes,
+  actionsRoutes,
 };

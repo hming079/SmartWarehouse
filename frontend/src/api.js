@@ -153,5 +153,8 @@ export const api = {
   getAlertById: (id) => request(`/alerts/${id}`),
   acknowledgeAlert: (id) => request(`/alerts/${id}/ack`, { method: "PATCH" }),
   resolveAlert: (id) => request(`/alerts/${id}/resolve`, { method: "PATCH" }),
+  toggleResolveAlert: (id) => request(`/alerts/${id}/toggle-resolve`, { method: "PATCH" }),
   assignAlert: (id, payload) => request(`/alerts/${id}/assign`, { method: "POST", body: JSON.stringify(payload) }),
+
+  getActions: () => request("/actions"),
 };

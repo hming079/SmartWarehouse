@@ -6,7 +6,7 @@ const RuleTable = ({ rules, onDelete, onToggle, onEdit }) => {
       <table className="min-w-full text-left text-sm">
         <thead className="bg-[#ece6f8] text-gray-700">
           <tr>
-            {["Rule name", "Áp dụng", "Loại thực phẩm", "Điều kiện", "Hành động", "Mức cảnh báo", "Trạng thái", "Actions"].map((heading) => (
+            {["Rule name", "Áp dụng", "Loại thực phẩm", "Điều kiện", "Hành động", "Thiết bị", "Mức cảnh báo", "Trạng thái", "Actions"].map((heading) => (
               <th key={heading} className="px-4 py-3 font-semibold">
                 {heading}
               </th>

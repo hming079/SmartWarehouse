@@ -17,7 +17,7 @@ const UnauthenticatedNotice = () => (
     <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-lg">
       <h2 className="text-2xl font-bold text-[#24124d]">Bạn chưa đăng nhập</h2>
       <p className="mt-2 text-sm text-gray-600">Vui lòng đăng nhập để truy cập các trang trong hệ thống.</p>
-      <Link to="/login" className="mt-5 inline-block rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
+      <Link to="/" className="mt-5 inline-block rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white hover:brightness-110">
         Đi đến trang đăng nhập
       </Link>
     </div>

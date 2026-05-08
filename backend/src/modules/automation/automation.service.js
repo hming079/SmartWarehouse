@@ -17,16 +17,38 @@ async function updateRule(ruleId, payload) {
     room_id,
     food_type_id,
     action_id,
+    action_mode,
     device_ids,
   } = payload;
 
   const pool = await getPool();
+  let derivedFoodTypeId = food_type_id || null;
+  let derivedFoodType = food_type || null;
+
+  if (room_id && !derivedFoodTypeId) {
+    const roomResult = await pool
+      .request()
+      .input("room_id_lookup", sql.Int, Number(room_id))
+      .query(`
+        SELECT TOP 1 r.food_type_id, ft.name AS food_type_name
+        FROM dbo.Rooms r
+        LEFT JOIN dbo.FoodTypes ft ON ft.type_id = r.food_type_id
+        WHERE r.room_id = @room_id_lookup
+      `);
+
+    const roomRow = roomResult.recordset?.[0];
+    if (roomRow?.food_type_id) {
+      derivedFoodTypeId = roomRow.food_type_id;
+      derivedFoodType = roomRow.food_type_name || derivedFoodType;
+    }
+  }
+
   await pool
     .request()
     .input("rule_id", sql.Int, ruleId)
     .input("name", sql.NVarChar, name)
     .input("apply_to", sql.NVarChar, apply_to || null)
-    .input("food_type", sql.NVarChar, food_type || null)
+    .input("food_type", sql.NVarChar, derivedFoodType)
     .input("metric", sql.NVarChar, metric)
     .input("compare_op", sql.NVarChar, compare_op)
     .input("threshold_value", sql.Float, Number(threshold_value))
@@ -36,8 +58,9 @@ async function updateRule(ruleId, payload) {
     .input("alert_level", sql.NVarChar, alert_level)
     .input("is_active", sql.Bit, is_active === undefined ? true : Boolean(is_active))
     .input("room_id", sql.Int, room_id || null)
-    .input("food_type_id", sql.Int, food_type_id || null)
+    .input("food_type_id", sql.Int, derivedFoodTypeId)
     .input("action_id", sql.Int, action_id || null)
+    .input("action_mode", sql.NVarChar, action_mode || null)
     .query(`
       UPDATE dbo.AutomationRules SET
         name = @name,
@@ -53,7 +76,8 @@ async function updateRule(ruleId, payload) {
         is_active = @is_active,
         room_id = @room_id,
         food_type_id = @food_type_id,
-        action_id = @action_id
+        action_id = @action_id,
+        action_mode = @action_mode
       WHERE rule_id = @rule_id
     `);
 
@@ -95,8 +119,9 @@ async function updateRule(ruleId, payload) {
     alert_level,
     is_active: is_active === undefined ? true : Boolean(is_active),
     room_id: room_id || null,
-    food_type_id: food_type_id || null,
+    food_type_id: derivedFoodTypeId,
     action_id: action_id || null,
+    action_mode: action_mode || null,
     device_ids: device_ids || [],
   };
 }
@@ -243,7 +268,7 @@ async function listRules() {
       ar.room_id,
       r.name AS room_name,
       ar.food_type_id,
-      ft.name AS food_type_name,
+      COALESCE(ft.name, rft.name, ar.food_type) AS food_type_name,
       ar.action_id,
       a.action_name AS action_name_normalized,
       ar.action_mode,
@@ -251,9 +276,10 @@ async function listRules() {
     FROM dbo.AutomationRules ar
     LEFT JOIN dbo.Rooms r ON r.room_id = ar.room_id
     LEFT JOIN dbo.FoodTypes ft ON ft.type_id = ar.food_type_id
+    LEFT JOIN dbo.FoodTypes rft ON rft.type_id = r.food_type_id
     LEFT JOIN dbo.Actions a ON a.action_id = ar.action_id
     LEFT JOIN dbo.AutomationRuleDevices ard ON ard.rule_id = ar.rule_id
-    GROUP BY ar.rule_id, ar.name, ar.apply_to, ar.food_type, ar.metric, ar.compare_op, ar.threshold_value, ar.action_name, ar.action_device_ids, ar.action_device_types, ar.alert_level, ar.is_active, ar.room_id, r.name, ar.food_type_id, ft.name, ar.action_id, a.action_name, ar.action_mode
+    GROUP BY ar.rule_id, ar.name, ar.apply_to, ar.food_type, ar.metric, ar.compare_op, ar.threshold_value, ar.action_name, ar.action_device_ids, ar.action_device_types, ar.alert_level, ar.is_active, ar.room_id, r.name, ar.food_type_id, ft.name, rft.name, ar.action_id, a.action_name, ar.action_mode
     ORDER BY ar.rule_id DESC
   `);
 
@@ -282,6 +308,27 @@ async function createRule(payload) {
   } = payload;
 
   const pool = await getPool();
+  let derivedFoodTypeId = food_type_id || null;
+  let derivedFoodType = food_type || null;
+
+  if (room_id && !derivedFoodTypeId) {
+    const roomResult = await pool
+      .request()
+      .input("room_id_lookup", sql.Int, Number(room_id))
+      .query(`
+        SELECT TOP 1 r.food_type_id, ft.name AS food_type_name
+        FROM dbo.Rooms r
+        LEFT JOIN dbo.FoodTypes ft ON ft.type_id = r.food_type_id
+        WHERE r.room_id = @room_id_lookup
+      `);
+
+    const roomRow = roomResult.recordset?.[0];
+    if (roomRow?.food_type_id) {
+      derivedFoodTypeId = roomRow.food_type_id;
+      derivedFoodType = roomRow.food_type_name || derivedFoodType;
+    }
+  }
+
   const nextIdResult = await pool
     .request()
     .query(
@@ -295,7 +342,7 @@ async function createRule(payload) {
     .input("rule_id", sql.Int, nextId)
     .input("name", sql.NVarChar, name)
     .input("apply_to", sql.NVarChar, apply_to || null)
-    .input("food_type", sql.NVarChar, food_type || null)
+    .input("food_type", sql.NVarChar, derivedFoodType)
     .input("metric", sql.NVarChar, metric)
     .input("compare_op", sql.NVarChar, compare_op)
     .input("threshold_value", sql.Float, Number(threshold_value))
@@ -305,17 +352,18 @@ async function createRule(payload) {
     .input("alert_level", sql.NVarChar, alert_level)
     .input("is_active", sql.Bit, Boolean(is_active))
     .input("room_id", sql.Int, room_id || null)
-    .input("food_type_id", sql.Int, food_type_id || null)
+    .input("food_type_id", sql.Int, derivedFoodTypeId)
     .input("action_id", sql.Int, action_id || null)
+    .input("action_mode", sql.NVarChar, payload.action_mode || null)
     .query(`
       INSERT INTO dbo.AutomationRules (
         rule_id, name, apply_to, food_type, metric, compare_op,
         threshold_value, action_name, action_device_ids, action_device_types, alert_level, is_active,
-        room_id, food_type_id, action_id
+        room_id, food_type_id, action_id, action_mode
       ) VALUES (
         @rule_id, @name, @apply_to, @food_type, @metric, @compare_op,
         @threshold_value, @action_name, @action_device_ids, @action_device_types, @alert_level, @is_active,
-        @room_id, @food_type_id, @action_id
+        @room_id, @food_type_id, @action_id, @action_mode
       )
     `);
 
@@ -350,8 +398,9 @@ async function createRule(payload) {
     alert_level,
     is_active: Boolean(is_active),
     room_id: room_id || null,
-    food_type_id: food_type_id || null,
+    food_type_id: derivedFoodTypeId,
     action_id: action_id || null,
+    action_mode: action_mode || null,
     device_ids: device_ids || [],
   };
 }

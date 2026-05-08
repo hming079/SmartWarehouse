@@ -13,6 +13,7 @@ const floorRoutes = require("../modules/area/floor/floor.route");
 const roomRoutes = require("../modules/area/room/room.route");
 const foodTypeRoutes = require("../modules/area/food-type/food-type.route");
 const automationRoutes = require("../modules/automation/automation.route");
+const actionsRoutes = require("../modules/actions/actions.route");
 const requireAuth = require("../middleware/requireAuth");
 
 const router = express.Router();
@@ -31,6 +32,7 @@ router.use("/floors", floorRoutes);
 router.use("/rooms", roomRoutes);
 router.use("/food-types", foodTypeRoutes);
 router.use("/automation", automationRoutes);
+router.use("/actions", actionsRoutes);
 router.use("/iot", iotRoutes);
 
 module.exports = router;
