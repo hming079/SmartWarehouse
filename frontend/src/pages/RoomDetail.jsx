@@ -383,50 +383,54 @@ const RoomDetail = () => {
   }, [selectedRoomId, metric, range]);
 
   return (
-    <section className="min-h-[80vh] rounded-3xl bg-gradient-to-b from-[#04122f] via-[#031129] to-[#020b1b] p-4 text-white shadow-2xl md:p-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <section className="min-h-[80vh] rounded-3xl bg-white/10 dark:bg-slate-900/50 backdrop-blur-md border border-white/20 p-4 text-slate-900 dark:text-white shadow-2xl md:p-6 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute top-0 -left-20 w-72 h-72 rounded-full bg-blue-500/30 blur-[100px]" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-indigo-500/20 blur-[100px]" />
+      </div>
+      <div className="relative mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <button
             onClick={handleBack}
-            className="mb-3 inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-sm text-white/80 transition hover:bg-white/10"
+            className="mb-3 inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-sm text-slate-900 dark:text-white transition hover:bg-blue-500/20"
           >
             <ChevronLeft size={16} /> Quay lai Area
           </button>
-          <h1 className="text-3xl font-bold text-white">{roomTitle}</h1>
-          <p className="mt-1 text-sm text-[#88a2cf]">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{roomTitle}</h1>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
             {stateZone?.name || `Khu vuc ${searchParams.get("areaId") || "--"}`} • {stateFloor?.floor_number ? `Tang ${stateFloor.floor_number}` : `Tang ${searchParams.get("floorId") || "--"}`} • {roomDescription}
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoat dong</span>
+        <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300 border border-emerald-500/30">Hoat dong</span>
       </div>
 
       {roomFoodTypeName ? (
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-sm text-cyan-100">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-sm text-blue-900 dark:text-blue-100">
           <span className="text-base" aria-hidden="true">{roomFoodTypeIcon}</span>
           <span>Loại thực phẩm: {roomFoodTypeName}</span>
         </div>
       ) : null}
 
       {(error || devicesError) && (
-        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error || devicesError}</div>
+        <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:text-red-200 backdrop-blur">{error || devicesError}</div>
       )}
-      {metaError && <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{metaError}</div>}
-      {metaInfo && <div className="mb-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{metaInfo}</div>}
+      {metaError && <div className="mb-4 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-900 dark:text-red-200 backdrop-blur">{metaError}</div>}
+      {metaInfo && <div className="mb-4 rounded-xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200 backdrop-blur">{metaInfo}</div>}
 
-      {(loading || devicesLoading) && <p className="mb-4 text-sm text-[#8aa3ce]">Dang tai du lieu phong...</p>}
+      {(loading || devicesLoading) && <p className="mb-4 text-sm text-slate-900 dark:text-blue-300">Dang tai du lieu phong...</p>}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="rounded-2xl border border-cyan-400/20 bg-[#071a3f]/70 p-4 text-center">
-          <Thermometer className="mx-auto mb-2 text-cyan-300" size={22} />
-          <p className="text-4xl font-bold text-cyan-300">{formatValue(temperatureValue, "°C")}</p>
-          <p className="mt-1 text-sm text-[#89a5d8]">Nhiệt độ hiện tại</p>
+        <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-blue-400/50 hover:shadow-lg shadow-lg">
+          <Thermometer className="mx-auto mb-2 text-blue-600 dark:text-blue-400" size={22} />
+          <p className="text-4xl font-bold text-slate-900 dark:text-white">{formatValue(temperatureValue, "°C")}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Nhiệt độ hiện tại</p>
         </div>
 
-        <div className="rounded-2xl border border-teal-400/20 bg-[#071a3f]/70 p-4 text-center">
-          <Droplets className="mx-auto mb-2 text-teal-300" size={22} />
-          <p className="text-4xl font-bold text-teal-300">{formatValue(humidityValue, "%")}</p>
-          <p className="mt-1 text-sm text-[#89a5d8]">Độ ẩm hiện tại</p>
+        <div className="rounded-2xl border border-indigo-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-indigo-400/50 hover:shadow-lg shadow-lg">
+          <Droplets className="mx-auto mb-2 text-indigo-600 dark:text-indigo-400" size={22} />
+          <p className="text-4xl font-bold text-slate-900 dark:text-white">{formatValue(humidityValue, "%")}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Độ ẩm hiện tại</p>
         </div>
 
         {/* <div className="rounded-2xl border border-amber-400/20 bg-[#071a3f]/70 p-4 text-center">
@@ -435,21 +439,21 @@ const RoomDetail = () => {
           <p className="mt-1 text-sm text-[#89a5d8]">Ngưỡng nhiệt độ</p>
         </div> */}
 
-        <div className="rounded-2xl border border-cyan-400/20 bg-[#071a3f]/70 p-4 text-center">
-          <Power className="mx-auto mb-2 text-cyan-300" size={22} />
-          <p className="text-3xl font-bold text-cyan-300">{activeCount}/{totalCount}</p>
-          <p className="mt-1 text-sm text-[#89a5d8]">Thiết bị đang bật</p>
+        <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-blue-400/50 hover:shadow-lg shadow-lg">
+          <Power className="mx-auto mb-2 text-blue-600 dark:text-blue-400" size={22} />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{activeCount}/{totalCount}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Thiết bị đang bật</p>
         </div>
       </div>
 
-      <div className="mt-5 space-y-4 rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
+      <div className="mt-5 space-y-4 rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
         <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-3 rounded-xl bg-[#f7f5fc] p-4 xl:col-span-2">
+          <div className="space-y-3 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur p-4 xl:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-[#5a4aa2]">Trend Graph</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-blue-400">Trend Graph</h3>
               <div className="flex items-center gap-2">
                 <select
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
+                  className="rounded-lg border border-blue-300/40 bg-white/50 dark:bg-slate-900/50 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-slate-300 dark:border-blue-400/30"
                   value={metric}
                   onChange={(event) => setMetric(event.target.value)}
                 >
@@ -460,7 +464,7 @@ const RoomDetail = () => {
                   ))}
                 </select>
                 <select
-                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700"
+                  className="rounded-lg border border-blue-300/40 bg-white/50 dark:bg-slate-900/50 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-slate-300 dark:border-blue-400/30"
                   value={range}
                   onChange={(event) => setRange(event.target.value)}
                 >
@@ -473,19 +477,19 @@ const RoomDetail = () => {
               </div>
             </div>
 
-            {timeseriesError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{timeseriesError}</p> : null}
+            {timeseriesError ? <p className="rounded-lg bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-600 dark:text-red-300">{timeseriesError}</p> : null}
             {timeseriesLoading ? <p className="text-xs text-gray-500">Loading graph...</p> : <TimeseriesChart points={timeseries} metric={metric} />}
           </div>
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
-        <h2 className="mb-3 text-lg font-semibold text-white">Thiết bị trong phòng</h2>
+      <div className="mt-5 rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
+        <h2 className="mb-3 text-lg font-semibold text-slate-900 dark:text-white">Thiết bị trong phòng</h2>
 
         <div className="mb-5">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs uppercase tracking-wider text-[#7f96c0]">Thông tin cảm biến</p>
-            <span className="text-xs text-[#8aa3ce]">{sensorReadings.length} cảm biến</span>
+            <p className="text-xs uppercase tracking-wider text-slate-700 dark:text-blue-300">Thông tin cảm biến</p>
+            <span className="text-xs text-slate-700 dark:text-slate-300">{sensorReadings.length} cảm biến</span>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {sensorReadings.map((sensor) => {
@@ -496,16 +500,16 @@ const RoomDetail = () => {
                   : "--";
 
               return (
-                <div key={sensor.key} className="rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-3">
+                <div key={sensor.key} className="rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-3 transition hover:border-blue-400/50">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-white">{sensor.label}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${hasValue ? "bg-cyan-500/20 text-cyan-200" : "bg-white/10 text-white/60"}`}>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{sensor.label}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${hasValue ? "bg-blue-500/30 text-slate-900 dark:text-blue-200 border border-blue-400/30" : "bg-white/10 text-slate-700 dark:text-white/60 border border-white/20"}`}>
                       {hasValue ? "Đang cập nhật" : "Không có dữ liệu"}
                     </span>
                   </div>
-                  <p className="mt-2 text-3xl font-bold text-white">{formatValue(sensor.value, sensor.unit)}</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{formatValue(sensor.value, sensor.unit)}</p>
                   {/* <p className="mt-1 text-xs text-[#8ea9d8]">Ngưỡng: {thresholdText}</p> */}
-                  <p className="mt-1 text-xs text-[#8ea9d8]">Cập nhật: {formatDateTime(sensor.updatedAt)}</p>
+                  <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Cập nhật: {formatDateTime(sensor.updatedAt)}</p>
                 </div>
               );
             })}
@@ -514,7 +518,7 @@ const RoomDetail = () => {
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-xs uppercase tracking-wider text-[#7f96c0]">
+            <p className="text-xs uppercase tracking-wider text-slate-700 dark:text-blue-300">
               Thiet bi dieu khien ({filteredControlDevices.length}/{controlDevices.length})
             </p>
             <div className="flex items-center gap-2">
@@ -522,12 +526,12 @@ const RoomDetail = () => {
                 value={deviceFilterText}
                 onChange={(event) => setDeviceFilterText(event.target.value)}
                 placeholder="Filter by name/id/status"
-                className="w-44 rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] placeholder:text-[#9eb6df] outline-none"
+                className="w-44 rounded-lg border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-white placeholder:text-slate-600 dark:placeholder:text-blue-200/50 outline-none transition focus:border-blue-400/60"
               />
               <select
                 value={deviceFilterStatus}
                 onChange={(event) => setDeviceFilterStatus(event.target.value)}
-                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+                className="rounded-lg border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-white outline-none transition focus:border-blue-400/60"
               >
                 <option value="all">All status</option>
                 <option value="on">On</option>
@@ -536,7 +540,7 @@ const RoomDetail = () => {
               <select
                 value={selectedDeviceType}
                 onChange={(event) => setSelectedDeviceType(event.target.value)}
-                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+                className="rounded-lg border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-white outline-none transition focus:border-blue-400/60"
               >
                 {DEVICE_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -547,22 +551,22 @@ const RoomDetail = () => {
               <button
                 type="button"
                 onClick={() => handleAddDevice(selectedDeviceType)}
-                className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                className="rounded-lg bg-emerald-500/30 border border-emerald-400/30 px-2.5 py-1 text-xs font-semibold text-emerald-900 dark:text-emerald-200 transition hover:bg-emerald-500/40 hover:border-emerald-400/50"
               >
                 + Add Device
               </button>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {controlDevices.length === 0 && <p className="text-sm text-[#8aa3ce]">Chua co thiet bi dieu khien.</p>}
+            {controlDevices.length === 0 && <p className="text-sm text-slate-700 dark:text-slate-300">Chua co thiet bi dieu khien.</p>}
             {controlDevices.length > 0 && filteredControlDevices.length === 0 && (
-              <p className="text-sm text-[#8aa3ce]">Khong tim thay thiet bi phu hop bo loc.</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300">Khong tim thay thiet bi phu hop bo loc.</p>
             )}
             {filteredControlDevices.map((device) => (
-              <div key={device.id} className="flex items-center justify-between rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-2.5">
+              <div key={device.id} className="flex items-center justify-between rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2.5 transition hover:border-blue-400/50">
                 <div className="min-w-0 pr-2">
-                  <p className="truncate text-sm font-medium text-white">{device.name + "_" + device.deviceId}</p>
-                  <p className="text-xs text-[#90a8d4]">{getStatusText(device.status)}</p>
+                  <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{device.name + "_" + device.deviceId}</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300">{getStatusText(device.status)}</p>
                   {device.setupDescription ? (
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
                       {device.setupDescription}
@@ -573,7 +577,7 @@ const RoomDetail = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteDevice(device.id)}
-                    className="inline-flex items-center gap-1 rounded bg-rose-500/20 px-2 py-1 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/30"
+                    className="inline-flex items-center gap-1 rounded bg-rose-500/30 border border-rose-400/30 px-2 py-1 text-xs font-semibold text-rose-900 dark:text-rose-200 transition hover:bg-rose-500/40 hover:border-rose-400/50"
                   >
                     <Trash2 size={12} /> Delete
                   </button>
@@ -581,7 +585,7 @@ const RoomDetail = () => {
                     type="button"
                     onClick={() => handleToggleDevice(device.id)}
                     disabled={pendingControlIds.includes(device.id)}
-                    className={`h-6 w-10 rounded-full p-1 transition ${device.status === "on" ? "bg-cyan-400" : "bg-white/20"} ${pendingControlIds.includes(device.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                    className={`h-6 w-10 rounded-full p-1 transition ${device.status === "on" ? "bg-blue-500" : "bg-white/20"} ${pendingControlIds.includes(device.id) ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className={`block h-4 w-4 rounded-full bg-white transition ${device.status === "on" ? "translate-x-4" : "translate-x-0"}`} />
                   </button>
@@ -593,87 +597,87 @@ const RoomDetail = () => {
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4">
-        <div className="rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
+        <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Bot size={18} className="text-cyan-300" />
-              <h3 className="text-lg font-semibold text-white">Automation</h3>
+              <Bot size={18} className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Automation</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={reloadRoomMeta}
                 disabled={metaLoading}
-                className="rounded-lg bg-white/10 p-1.5 text-cyan-200 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-blue-500/20 border border-blue-400/30 p-1.5 text-blue-900 dark:text-blue-200 transition hover:bg-blue-500/30 hover:border-blue-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                 title="Lam moi"
               >
                 <RefreshCw size={14} />
               </button>
               <button
                 onClick={openAutomationModal}
-                className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                className="rounded-lg bg-emerald-500/30 border border-emerald-400/30 px-3 py-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200 transition hover:bg-emerald-500/40 hover:border-emerald-400/50"
               >
                 + Create
               </button>
             </div>
           </div>
 
-          {metaLoading ? <p className="text-sm text-[#8aa3ce]">Dang tai...</p> : null}
+          {metaLoading ? <p className="text-sm text-slate-700 dark:text-slate-300">Dang tai...</p> : null}
 
           <div className="space-y-2">
             {roomAwareAutomation.slice(0, 8).map((rule) => (
-              <div key={rule.rule_id} className="rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-2">
+              <div key={rule.rule_id} className="rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2 transition hover:border-blue-400/50">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white">{rule.name || `Rule ${rule.rule_id}`}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${rule.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/70"}`}>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{rule.name || `Rule ${rule.rule_id}`}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${rule.is_active ? "bg-emerald-500/30 text-emerald-300 border-emerald-400/30" : "bg-white/10 text-white/70 border-white/20"}`}>
                     {rule.is_active ? "Active" : "Off"}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-[#8ea9d8]">{rule.displayCondition || "No condition"}</p>
-                <p className="mt-1 text-xs text-[#8ea9d8]">Ap dung: {rule.apply_to || "--"} • Alert: {rule.alert_level || "--"}</p>
-                <p className="mt-1 text-xs text-[#8ea9d8]">Action: {rule.action_name || "--"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">{rule.displayCondition || "No condition"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Ap dung: {rule.apply_to || "--"} • Alert: {rule.alert_level || "--"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Action: {rule.action_name || "--"}</p>
                 <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => openEditAutomationModal(rule)}
-                    className="rounded bg-white/10 px-2 py-1 text-xs font-semibold text-[#c5d6f2] hover:bg-white/20"
+                    className="rounded bg-blue-500/20 border border-blue-400/30 px-2 py-1 text-xs font-semibold text-blue-900 dark:text-blue-200 transition hover:bg-blue-500/30 hover:border-blue-400/50"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleToggleAutomation(rule.rule_id)}
                     disabled={busyKey === `automation-toggle-${rule.rule_id}`}
-                    className="rounded bg-cyan-500/20 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded bg-indigo-500/20 border border-indigo-400/30 px-2 py-1 text-xs font-semibold text-indigo-900 dark:text-indigo-200 transition hover:bg-indigo-500/30 hover:border-indigo-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {busyKey === `automation-toggle-${rule.rule_id}` ? "..." : "Toggle"}
                   </button>
                   <button
                     onClick={() => handleDeleteAutomation(rule.rule_id)}
                     disabled={busyKey === `automation-delete-${rule.rule_id}`}
-                    className="rounded bg-rose-500/20 px-2 py-1 text-xs font-semibold text-rose-200 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded bg-rose-500/20 border border-rose-400/30 px-2 py-1 text-xs font-semibold text-rose-900 dark:text-rose-200 transition hover:bg-rose-500/30 hover:border-rose-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span className="inline-flex items-center gap-1"><Trash2 size={12} /> Delete</span>
                   </button>
                 </div>
               </div>
             ))}
-            {!metaLoading && roomAwareAutomation.length === 0 ? <p className="text-sm text-[#8aa3ce]">Chua co quy tac automation.</p> : null}
+            {!metaLoading && roomAwareAutomation.length === 0 ? <p className="text-sm text-slate-700 dark:text-slate-300">Chua co quy tac automation.</p> : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
+        <div className="rounded-2xl border border-indigo-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <CalendarClock size={18} className="text-cyan-300" />
-              <h3 className="text-lg font-semibold text-white">Schedules</h3>
+              <CalendarClock size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Schedules</h3>
             </div>
             <button
               onClick={openCreateScheduleForm}
-              className="rounded-lg bg-emerald-500/20 px-3 py-1.5 text-xs font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+              className="rounded-lg bg-emerald-500/30 border border-emerald-400/30 px-3 py-1.5 text-xs font-semibold text-emerald-900 dark:text-emerald-200 transition hover:bg-emerald-500/40 hover:border-emerald-400/50"
             >
               + Create
             </button>
           </div>
 
-          <div className="mb-3 inline-flex overflow-hidden rounded-lg border border-[#17355e] text-xs">
+          <div className="mb-3 inline-flex overflow-hidden rounded-lg border border-indigo-400/30 text-xs">
             {[
               { key: "all", label: "All" },
               { key: "active", label: "Active" },
@@ -682,7 +686,7 @@ const RoomDetail = () => {
               <button
                 key={item.key}
                 onClick={() => setScheduleFilter(item.key)}
-                className={`px-2 py-1.5 transition ${scheduleFilter === item.key ? "bg-cyan-500/30 text-cyan-200" : "bg-[#0a1a3f] text-[#8ea9d8]"}`}
+                className={`px-2 py-1.5 transition ${scheduleFilter === item.key ? "bg-indigo-500/30 text-indigo-900 dark:text-indigo-200 border-r border-indigo-400/30" : "bg-white/10 text-slate-700 dark:text-slate-300 border-r border-indigo-400/20"}`}
               >
                 {item.label}
               </button>
@@ -691,54 +695,54 @@ const RoomDetail = () => {
 
           <div className="space-y-2">
             {filteredSchedules.slice(0, 8).map((item) => (
-              <div key={item.id} className="rounded-xl border border-[#17355e] bg-[#0a1a3f] px-3 py-2">
+              <div key={item.id} className="rounded-xl border border-indigo-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2 transition hover:border-indigo-400/50">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-white">{item.name || `Schedule ${item.id}`}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${item.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-white/10 text-white/70"}`}>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.name || `Schedule ${item.id}`}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${item.is_active ? "bg-emerald-500/30 text-emerald-300 border-emerald-400/30" : "bg-white/10 text-white/70 border-white/20"}`}>
                     {item.is_active ? "Active" : "Off"}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-[#8ea9d8]">{item.start_time?.slice(0, 5) || "--:--"} - {item.end_time?.slice(0, 5) || "--:--"} | {item.days_of_week || "No days"}</p>
-                <p className="mt-1 text-xs text-[#8ea9d8]">Action: {item.action || "--"}</p>
-                <p className="mt-1 text-xs text-[#8ea9d8]">Devices: {item.device_names || "--"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">{item.start_time?.slice(0, 5) || "--:--"} - {item.end_time?.slice(0, 5) || "--:--"} | {item.days_of_week || "No days"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Action: {item.action || "--"}</p>
+                <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Devices: {item.device_names || "--"}</p>
                 <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => openEditScheduleForm(item)}
-                    className="rounded bg-white/10 px-2 py-1 text-xs font-semibold text-[#c5d6f2] hover:bg-white/20"
+                    className="rounded bg-indigo-500/20 border border-indigo-400/30 px-2 py-1 text-xs font-semibold text-indigo-900 dark:text-indigo-200 transition hover:bg-indigo-500/30 hover:border-indigo-400/50"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleToggleSchedule(item.id)}
                     disabled={busyKey === `schedule-toggle-${item.id}`}
-                    className="rounded bg-cyan-500/20 px-2 py-1 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded bg-indigo-500/20 border border-indigo-400/30 px-2 py-1 text-xs font-semibold text-indigo-900 dark:text-indigo-200 transition hover:bg-indigo-500/30 hover:border-indigo-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {busyKey === `schedule-toggle-${item.id}` ? "..." : "Toggle"}
                   </button>
                   <button
                     onClick={() => handleDeleteSchedule(item.id)}
                     disabled={busyKey === `schedule-delete-${item.id}`}
-                    className="rounded bg-rose-500/20 px-2 py-1 text-xs font-semibold text-rose-200 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded bg-rose-500/20 border border-rose-400/30 px-2 py-1 text-xs font-semibold text-rose-900 dark:text-rose-200 transition hover:bg-rose-500/30 hover:border-rose-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <span className="inline-flex items-center gap-1"><Trash2 size={12} /> Delete</span>
                   </button>
                 </div>
               </div>
             ))}
-            {!metaLoading && filteredSchedules.length === 0 ? <p className="text-sm text-[#8aa3ce]">Chua co lich tu dong cho phong nay.</p> : null}
+            {!metaLoading && filteredSchedules.length === 0 ? <p className="text-sm text-slate-700 dark:text-slate-300">Chua co lich tu dong cho phong nay.</p> : null}
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
+        <div className="rounded-2xl border border-amber-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <TriangleAlert size={18} className="text-amber-300" />
-              <h3 className="text-lg font-semibold text-white">Alerts</h3>
+              <TriangleAlert size={18} className="text-amber-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Alerts</h3>
             </div>
             <button
               onClick={reloadRoomMeta}
               disabled={metaLoading}
-              className="rounded-lg bg-white/10 p-1.5 text-amber-200 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-amber-500/20 border border-amber-400/30 p-1.5 text-amber-900 dark:text-amber-200 transition hover:bg-amber-500/30 hover:border-amber-400/50 disabled:cursor-not-allowed disabled:opacity-60"
               title="Refresh alerts"
             >
               <RefreshCw size={14} />
@@ -747,11 +751,11 @@ const RoomDetail = () => {
 
           <div className="mb-4 flex flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#8ea9d8]">Status:</span>
+              <span className="text-xs font-semibold text-slate-900 dark:text-amber-200">Status:</span>
               <select
                 value={alertsFilter}
                 onChange={(event) => setAlertsFilter(event.target.value)}
-                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+                className="rounded-lg border border-amber-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-white outline-none transition focus:border-amber-400/60"
               >
                 <option value="all">All</option>
                 <option value="open">Open</option>
@@ -759,11 +763,11 @@ const RoomDetail = () => {
               </select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#8ea9d8]">Severity:</span>
+              <span className="text-xs font-semibold text-slate-900 dark:text-amber-200">Severity:</span>
               <select
                 value={alertsSeverityFilter}
                 onChange={(event) => setAlertsSeverityFilter(event.target.value)}
-                className="rounded-lg border border-[#2a4b7f] bg-[#0a1a3f] px-2 py-1 text-xs text-[#d6e4ff] outline-none"
+                className="rounded-lg border border-amber-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1 text-xs text-slate-900 dark:text-white outline-none transition focus:border-amber-400/60"
               >
                 <option value="all">All</option>
                 <option value="LOW">Low</option>
@@ -775,36 +779,36 @@ const RoomDetail = () => {
 
           <div className="space-y-2">
             {filteredAlerts.length === 0 && !metaLoading ? (
-              <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">No alerts for this room.</p>
+              <p className="rounded-lg bg-emerald-500/20 border border-emerald-400/30 px-3 py-2 text-sm text-emerald-900 dark:text-emerald-200">No alerts for this room.</p>
             ) : null}
 
             {filteredAlerts.map((alert) => {
               const isExpanded = expandedAlertId === alert.id;
               const isResolved = alert.status === "RESOLVED" || alert.is_resolved;
-              const severityColor = alert.severity === "HIGH" ? "border-rose-400/30 bg-rose-500/10" : alert.severity === "MEDIUM" ? "border-amber-400/30 bg-amber-500/10" : "border-blue-400/30 bg-blue-500/10";
-              const severityTextColor = alert.severity === "HIGH" ? "text-rose-200" : alert.severity === "MEDIUM" ? "text-amber-200" : "text-blue-200";
+              const severityColor = alert.severity === "HIGH" ? "border-rose-400/40 bg-rose-500/15" : alert.severity === "MEDIUM" ? "border-amber-400/40 bg-amber-500/15" : "border-blue-400/40 bg-blue-500/15";
+              const severityTextColor = alert.severity === "HIGH" ? "text-rose-900 dark:text-rose-200" : alert.severity === "MEDIUM" ? "text-amber-900 dark:text-amber-200" : "text-blue-900 dark:text-blue-200";
 
               return (
-                <div key={alert.id} className={`rounded-xl border p-3 transition ${severityColor}`}>
+                <div key={alert.id} className={`rounded-xl border p-3 transition backdrop-blur ${severityColor}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className={`text-sm font-semibold ${severityTextColor}`}>{alert.severity || "LOW"}</p>
-                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isResolved ? "bg-emerald-500/20 text-emerald-200" : "bg-yellow-500/20 text-yellow-200"}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold border ${isResolved ? "bg-emerald-500/30 text-slate-900 dark:text-emerald-200 border-emerald-400/30" : "bg-yellow-500/30 text-slate-900 dark:text-yellow-200 border-yellow-400/30"}`}>
                           {isResolved ? "RESOLVED" : "OPEN"}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-white">{alert.message || "Alert triggered"}</p>
-                      <p className="mt-1 text-xs text-[#8ea9d8]">Triggered: {formatDateTime(alert.timestamp)}</p>
+                      <p className="mt-1 text-sm text-slate-900 dark:text-white">{alert.message || "Alert triggered"}</p>
+                      <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Triggered: {formatDateTime(alert.timestamp)}</p>
                       {alert.triggered_value && (
-                        <p className="mt-1 text-xs text-[#8ea9d8]">Value: {Number(alert.triggered_value).toFixed(2)}</p>
+                        <p className="mt-1 text-xs text-slate-700 dark:text-slate-300">Value: {Number(alert.triggered_value).toFixed(2)}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
-                        className="rounded bg-white/10 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-white/20"
+                        className="rounded bg-white/20 border border-white/30 px-2 py-1 text-[10px] font-semibold text-slate-900 dark:text-white transition hover:bg-white/30"
                       >
                         {isExpanded ? "Hide" : "Show"}
                       </button>
@@ -813,7 +817,7 @@ const RoomDetail = () => {
                           type="button"
                           onClick={() => handleResolveAlert(alert.id)}
                           disabled={busyKey === `alert-resolve-${alert.id}`}
-                          className="rounded bg-emerald-500/20 px-2 py-1 text-[10px] font-semibold text-emerald-200 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded bg-emerald-500/30 border border-emerald-400/30 px-2 py-1 text-[10px] font-semibold text-emerald-900 dark:text-emerald-200 transition hover:bg-emerald-500/40 hover:border-emerald-400/50 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {busyKey === `alert-resolve-${alert.id}` ? "..." : "Resolve"}
                         </button>
@@ -826,60 +830,60 @@ const RoomDetail = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#16335f] bg-[#061534]/60 p-4">
+        <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 shadow-lg">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <ClipboardList size={18} className="text-cyan-300" />
-              <h3 className="text-lg font-semibold text-white">Device logs</h3>
+              <ClipboardList size={18} className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Device logs</h3>
             </div>
             <button
               onClick={handleExportAudit}
               disabled={busyKey === "audit-export"}
-              className="rounded-lg bg-cyan-500/20 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-blue-500/30 border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/40 hover:border-blue-400/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyKey === "audit-export" ? "Dang export..." : "Export CSV"}
             </button>
           </div>
 
-          <div className="mb-2 rounded-lg border border-[#17355e] bg-[#0a1a3f] px-3 py-2 text-xs text-[#8ea9d8]">
+          <div className="mb-2 rounded-lg border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2 text-xs text-slate-700 dark:text-slate-300">
             Area {selectedAreaId || "--"} | Floor {selectedFloorId || "--"} | Room {selectedRoomId || "--"}
           </div>
 
-          {metaLoading ? <p className="text-sm text-[#8aa3ce]">Dang tai...</p> : null}
+          {metaLoading ? <p className="text-sm text-slate-700 dark:text-slate-300">Dang tai...</p> : null}
 
           <input
             value={auditActionFilter}
             onChange={(event) => setAuditActionFilter(event.target.value)}
             placeholder="Loc theo type, id, status"
-            className="mb-2 w-full rounded-lg border border-[#17355e] bg-[#0a1a3f] px-2 py-1.5 text-xs text-white outline-none"
+            className="mb-2 w-full rounded-lg border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur px-2 py-1.5 text-xs text-slate-900 dark:text-white placeholder:text-slate-600 dark:placeholder:text-blue-200/50 outline-none transition focus:border-blue-400/60"
           />
 
           <div className="space-y-2">
             {groupedAuditItems.slice(0, 12).map((group) => {
               const latest = group.logs[0];
               return (
-                <div key={group.key} className="rounded-xl border border-[#17355e] bg-[#0a1a3f]">
+                <div key={group.key} className="rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur overflow-hidden">
                   <button
                     onClick={() => handleExpandAudit(group.key)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition hover:bg-white/10"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{group.type} #{group.deviceId}</p>
-                      <p className="truncate text-[11px] text-[#8ea9d8]">{group.roomName} • {group.logs.length} logs</p>
+                      <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{group.type} #{group.deviceId}</p>
+                      <p className="truncate text-[11px] text-slate-700 dark:text-slate-300">{group.roomName} • {group.logs.length} logs</p>
                     </div>
-                    <div className="text-right text-[11px] text-[#8ea9d8]">
-                      <p className="font-semibold text-cyan-200">{latest?.status || "--"}</p>
+                    <div className="text-right text-[11px] text-slate-700 dark:text-slate-300">
+                      <p className="font-semibold text-slate-900 dark:text-white">{latest?.status || "--"}</p>
                       <p>{formatDateTime(latest?.timestamp)}</p>
                     </div>
                   </button>
 
                   {expandedAuditId === group.key ? (
-                    <div className="border-t border-[#1d3d69] bg-[#081731] px-3 py-2">
-                      <div className="space-y-1 text-xs text-[#9eb6df]">
+                    <div className="border-t border-blue-400/20 bg-white/5 px-3 py-2">
+                      <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
                         {group.logs.slice(0, 10).map((log) => (
-                          <div key={log.id} className="flex items-center justify-between gap-2 rounded-md bg-[#0a1d3d] px-2 py-1">
-                            <span className="font-medium text-cyan-200">{log.status || "--"}</span>
-                            <span className="text-[#8ea9d8]">{formatDateTime(log.timestamp)}</span>
+                          <div key={log.id} className="flex items-center justify-between gap-2 rounded-md bg-white/10 px-2 py-1">
+                            <span className="font-medium text-slate-900 dark:text-white">{log.status || "--"}</span>
+                            <span className="text-slate-700 dark:text-slate-300">{formatDateTime(log.timestamp)}</span>
                           </div>
                         ))}
                       </div>
@@ -888,58 +892,58 @@ const RoomDetail = () => {
                 </div>
               );
             })}
-            {!metaLoading && groupedAuditItems.length === 0 ? <p className="text-sm text-[#8aa3ce]">Chua co device log cho phong nay.</p> : null}
+            {!metaLoading && groupedAuditItems.length === 0 ? <p className="text-sm text-slate-700 dark:text-slate-300">Chua co device log cho phong nay.</p> : null}
           </div>
         </div>
       </div>
 
       <Modal isOpen={isAutomationModalOpen} onClose={() => { setIsAutomationModalOpen(false); setAutomationEditingId(null); }}>
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-2xl">
           <div>
-            <h3 className="text-xl font-bold text-[#24124d]">Create automation rule</h3>
-            <p className="text-sm text-gray-500">Create the rule without leaving this room page.</p>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">Create automation rule</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Create the rule without leaving this room page.</p>
           </div>
 
-          {automationFormError ? <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{automationFormError}</div> : null}
+          {automationFormError ? <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{automationFormError}</div> : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Rule name
               <input
                 value={automationForm.name}
                 onChange={(event) => setAutomationForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 placeholder="Temperature high alert"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Apply to
               <input
                 value={roomTitle}
                 disabled
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-gray-100 px-3 py-2 text-sm text-gray-500 outline-none"
+                className="mt-2 w-full rounded-xl border border-slate-300/40 bg-slate-100 dark:bg-slate-900/50 px-3 py-2 text-sm text-slate-500 dark:text-slate-400 outline-none"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Metric
               <select
                 value={automationForm.metric}
                 onChange={(event) => setAutomationForm((prev) => ({ ...prev, metric: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
               >
                 <option value="Temperature">Temperature</option>
                 <option value="Humidity">Humidity</option>
               </select>
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Compare
               <select
                 value={automationForm.compare_op}
                 onChange={(event) => setAutomationForm((prev) => ({ ...prev, compare_op: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
               >
                 {COMPARE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -949,22 +953,22 @@ const RoomDetail = () => {
               </select>
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Threshold
               <input
                 value={automationForm.threshold_value}
                 onChange={(event) => setAutomationForm((prev) => ({ ...prev, threshold_value: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                 placeholder="30"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Alert level
               <select
                 value={automationForm.alert_level}
                 onChange={(event) => setAutomationForm((prev) => ({ ...prev, alert_level: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
               >
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
@@ -972,7 +976,7 @@ const RoomDetail = () => {
               </select>
             </label>
 
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
               Action type
               <select
                 value={automationForm.actionType || (automationForm.action_name ? "action" : "alert")}
@@ -984,7 +988,7 @@ const RoomDetail = () => {
                     action_name: value === "alert" ? "" : prev.action_name,
                   }));
                 }}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
               >
                 <option value="action">Kích hoạt thiết bị</option>
                 <option value="alert">Chỉ cảnh báo</option>
@@ -993,7 +997,7 @@ const RoomDetail = () => {
 
             {automationForm.actionType !== "alert" && (
               <>
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Action
                   <select
                     value={automationForm.actionOnOff || "on"}
@@ -1005,14 +1009,14 @@ const RoomDetail = () => {
                         action_name: `${value === "on" ? "Bật" : "Tắt"} ${prev.actionDeviceType ? prev.actionDeviceType : ""} ${prev.actionDeviceId ? `#${prev.actionDeviceId}` : ""}`.trim(),
                       }));
                     }}
-                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                   >
                     <option value="on">Bật (Turn on)</option>
                     <option value="off">Tắt (Turn off)</option>
                   </select>
                 </label>
 
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Device type
                   <select
                     value={automationForm.actionDeviceType || "fan"}
@@ -1025,7 +1029,7 @@ const RoomDetail = () => {
                         action_name: `${prev.actionOnOff === "off" ? "Tắt" : "Bật"} ${value}`.trim(),
                       }));
                     }}
-                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                    className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
                   >
                     {DEVICE_TYPE_OPTIONS.map(option => (
                       <option key={option.value} value={option.value}>{option.label}</option>
@@ -1033,7 +1037,7 @@ const RoomDetail = () => {
                   </select>
                 </label>
 
-                <label className="text-sm font-medium text-gray-700">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
                   Devices
                   <select
                     multiple
@@ -1046,7 +1050,7 @@ const RoomDetail = () => {
                         action_name: `${prev.actionOnOff === "off" ? "Tắt" : "Bật"} ${prev.actionDeviceType ? prev.actionDeviceType : ""} ${selected.map(id => `#${id}`).join(",")}`.trim(),
                       }));
                     }}
-                    className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400 h-28"
+                    className="mt-2 w-full rounded-xl border border-blue-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition h-28"
                   >
                     {controlDevices
                       .filter(d => (automationForm.actionDeviceType ? d.type === automationForm.actionDeviceType : true))
@@ -1054,7 +1058,7 @@ const RoomDetail = () => {
                         <option key={device.deviceId || device.id} value={device.deviceId || device.id}>{device.name} (ID: {device.deviceId || device.id})</option>
                       ))}
                   </select>
-                  <span className="block text-xs text-gray-500 mt-1">(Giữ Ctrl/Command để chọn nhiều thiết bị)</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400 mt-1">(Giữ Ctrl/Command để chọn nhiều thiết bị)</span>
                 </label>
               </>
             )}
@@ -1064,7 +1068,7 @@ const RoomDetail = () => {
             <button
               type="button"
               onClick={() => setIsAutomationModalOpen(false)}
-              className="rounded-xl bg-gray-100 px-5 py-2 font-semibold text-gray-700 hover:bg-gray-200"
+              className="rounded-xl bg-slate-200 dark:bg-slate-700 px-5 py-2 font-semibold text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition"
             >
               Cancel
             </button>
@@ -1091,7 +1095,7 @@ const RoomDetail = () => {
                 }
               }}
               disabled={busyKey === "automation-create"}
-              className="rounded-xl bg-green-500 px-5 py-2 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-2 font-semibold text-white transition shadow-lg shadow-blue-500/25 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyKey === "automation-create" ? (automationEditingId ? "Saving..." : "Saving...") : (automationEditingId ? "Save changes" : "Save")}
             </button>
@@ -1100,51 +1104,51 @@ const RoomDetail = () => {
       </Modal>
 
       <Modal isOpen={isScheduleModalOpen} onClose={() => setIsScheduleModalOpen(false)}>
-        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); handleSubmitSchedule(); }}>
+        <form className="space-y-4 max-w-2xl" onSubmit={(event) => { event.preventDefault(); handleSubmitSchedule(); }}>
           <div>
-            <h3 className="text-xl font-bold text-[#24124d]">{scheduleEditingId ? "Edit schedule" : "Create schedule"}</h3>
-            <p className="text-sm text-gray-500">Manage recurring actions directly from this room.</p>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-blue-500 bg-clip-text text-transparent">{scheduleEditingId ? "Edit schedule" : "Create schedule"}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Manage recurring actions directly from this room.</p>
           </div>
 
-          {scheduleFormError ? <div className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{scheduleFormError}</div> : null}
+          {scheduleFormError ? <div className="rounded-xl bg-rose-50 dark:bg-rose-500/10 px-3 py-2 text-sm text-rose-700 dark:text-rose-300">{scheduleFormError}</div> : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
               Schedule name
               <input
                 value={scheduleForm.name}
                 onChange={(event) => setScheduleForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-indigo-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition"
                 placeholder="Night cooling"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Start time
               <input
                 type="time"
                 value={scheduleForm.start_time}
                 onChange={(event) => setScheduleForm((prev) => ({ ...prev, start_time: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-indigo-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
               End time
               <input
                 type="time"
                 value={scheduleForm.end_time}
                 onChange={(event) => setScheduleForm((prev) => ({ ...prev, end_time: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-indigo-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition"
               />
             </label>
 
-            <label className="text-sm font-medium text-gray-700 md:col-span-2">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 md:col-span-2">
               Action
               <select
                 value={scheduleForm.action}
                 onChange={(event) => setScheduleForm((prev) => ({ ...prev, action: event.target.value }))}
-                className="mt-2 w-full rounded-xl border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400"
+                className="mt-2 w-full rounded-xl border border-indigo-300/40 bg-white/80 dark:bg-slate-800/50 backdrop-blur px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition"
               >
                 {ACTION_OPTIONS.map((action) => (
                   <option key={action} value={action}>
@@ -1155,7 +1159,7 @@ const RoomDetail = () => {
             </label>
 
             <div className="md:col-span-2">
-              <p className="text-sm font-medium text-gray-700">Days of week</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Days of week</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {DAY_OPTIONS.map((day) => {
                   const selected = scheduleForm.days.includes(day);
@@ -1164,7 +1168,7 @@ const RoomDetail = () => {
                       key={day}
                       type="button"
                       onClick={() => toggleScheduleDay(day)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${selected ? "bg-[#6c4fd3] text-white" : "bg-[#ece6f8] text-[#1d1645] hover:bg-[#ddd0f4]"}`}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${selected ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-500/50" : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 hover:bg-slate-300 dark:hover:bg-slate-600 border border-slate-300 dark:border-slate-600"}`}
                     >
                       {day}
                     </button>
@@ -1174,10 +1178,10 @@ const RoomDetail = () => {
             </div>
 
             <div className="md:col-span-2">
-              <p className="text-sm font-medium text-gray-700">Devices</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Devices</p>
               <div className="mt-2 grid max-h-52 grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
                 {scheduleDeviceOptions.length === 0 ? (
-                  <p className="text-sm text-gray-500">No devices found for this room.</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No devices found for this room.</p>
                 ) : (
                   scheduleDeviceOptions.map((device) => {
                     const id = Number(device.id);
@@ -1187,7 +1191,7 @@ const RoomDetail = () => {
                         key={id}
                         type="button"
                         onClick={() => toggleScheduleDevice(id)}
-                        className={`rounded-lg border px-3 py-2 text-left text-xs ${selected ? "border-cyan-400 bg-cyan-50 text-cyan-900" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}
+                        className={`rounded-lg border px-3 py-2 text-left text-xs font-medium transition ${selected ? "border-indigo-400/60 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-900 dark:text-indigo-100 shadow-lg shadow-indigo-500/10" : "border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"}`}
                       >
                         {device.name + "_" + device.id}
                       </button>
@@ -1202,14 +1206,14 @@ const RoomDetail = () => {
             <button
               type="button"
               onClick={() => setIsScheduleModalOpen(false)}
-              className="rounded-xl bg-gray-100 px-5 py-2 font-semibold text-gray-700 hover:bg-gray-200"
+              className="rounded-xl bg-slate-200 dark:bg-slate-700 px-5 py-2 font-semibold text-slate-900 dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busyKey === "schedule-submit"}
-              className="rounded-xl bg-green-500 px-5 py-2 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 font-semibold text-white transition shadow-lg shadow-indigo-500/25 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyKey === "schedule-submit" ? "Saving..." : "Save"}
             </button>

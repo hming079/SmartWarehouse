@@ -378,135 +378,143 @@ const Automation = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Error Display Section */}
-      {(errors.fetch || errors.save || errors.delete || errors.toggle || errors.general) && (
-        <div className="space-y-2">
-          {errors.general && (
-            <div className="flex items-center justify-between rounded-lg bg-yellow-50 p-4 border-l-4 border-yellow-500">
-              <div className="flex items-center gap-3">
-                <span className="text-lg text-yellow-600">⚠️</span>
-                <div>
-                  <p className="font-semibold text-yellow-800">Lỗi</p>
-                  <p className="text-sm text-yellow-700">{errors.general}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => clearError("general")}
-                className="text-yellow-600 hover:text-yellow-800"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {errors.fetch && (
-            <div className="flex items-center justify-between rounded-lg bg-red-50 p-4 border-l-4 border-red-500">
-              <div className="flex items-center gap-3">
-                <span className="text-lg text-red-600">⚠️</span>
-                <div>
-                  <p className="font-semibold text-red-800">Lỗi tải dữ liệu</p>
-                  <p className="text-sm text-red-700">{errors.fetch}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => clearError("fetch")}
-                className="text-red-600 hover:text-red-800"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {errors.save && (
-            <div className="flex items-center justify-between rounded-lg bg-orange-50 p-4 border-l-4 border-orange-500">
-              <div className="flex items-center gap-3">
-                <span className="text-lg text-orange-600">⚠️</span>
-                <div>
-                  <p className="font-semibold text-orange-800">Lỗi lưu quy tắc</p>
-                  <p className="text-sm text-orange-700">{errors.save}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => clearError("save")}
-                className="text-orange-600 hover:text-orange-800"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {errors.delete && (
-            <div className="flex items-center justify-between rounded-lg bg-red-50 p-4 border-l-4 border-red-500">
-              <div className="flex items-center gap-3">
-                <span className="text-lg text-red-600">⚠️</span>
-                <div>
-                  <p className="font-semibold text-red-800">Lỗi xóa quy tắc</p>
-                  <p className="text-sm text-red-700">{errors.delete}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => clearError("delete")}
-                className="text-red-600 hover:text-red-800"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-          {errors.toggle && (
-            <div className="flex items-center justify-between rounded-lg bg-yellow-50 p-4 border-l-4 border-yellow-500">
-              <div className="flex items-center gap-3">
-                <span className="text-lg text-yellow-600">⚠️</span>
-                <div>
-                  <p className="font-semibold text-yellow-800">Lỗi thay đổi trạng thái</p>
-                  <p className="text-sm text-yellow-700">{errors.toggle}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => clearError("toggle")}
-                className="text-yellow-600 hover:text-yellow-800"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-6 shadow-lg lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-3xl font-bold text-[#24124d]">Automation Rules</h1>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleCreate}
-            className="rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#a855f7] px-4 py-2 text-sm font-semibold text-white shadow transition hover:brightness-110"
-          >
-            + Thêm quy tắc
-          </button>
-        </div>
+    <div className="min-h-[80vh] rounded-3xl bg-white/10 dark:bg-slate-900/50 backdrop-blur-md border border-white/20 text-slate-900 dark:text-white shadow-2xl p-6 relative overflow-hidden">
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute top-0 -left-20 w-72 h-72 rounded-full bg-blue-500/30 blur-[100px]" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-indigo-500/20 blur-[100px]" />
       </div>
 
-      {loading ? (
-        <div className="rounded-xl bg-white p-4">Đang tải...</div>
-      ) : (
-        <RuleTable
-          rules={rules}
-          onDelete={handleDelete}
-          onToggle={handleToggle}
-          onEdit={handleEdit}
-        />
-      )}
+      <div className="relative space-y-6">
+        {(errors.fetch || errors.save || errors.delete || errors.toggle || errors.general) && (
+          <div className="space-y-2">
+            {errors.general && (
+              <div className="flex items-center justify-between rounded-lg bg-amber-500/20 p-4 border border-amber-400/40 backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">⚠️</span>
+                  <div>
+                    <p className="font-semibold text-amber-200">Lỗi</p>
+                    <p className="text-sm text-amber-100">{errors.general}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearError("general")}
+                  className="text-amber-300 hover:text-amber-200"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {errors.fetch && (
+              <div className="flex items-center justify-between rounded-lg bg-rose-500/20 p-4 border border-rose-400/40 backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">❌</span>
+                  <div>
+                    <p className="font-semibold text-rose-900 dark:text-rose-200">Lỗi tải dữ liệu</p>
+                    <p className="text-sm text-rose-100">{errors.fetch}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearError("fetch")}
+                  className="text-rose-900 dark:text-rose-200 hover:text-rose-800 dark:hover:text-rose-100"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {errors.save && (
+              <div className="flex items-center justify-between rounded-lg bg-orange-500/20 p-4 border border-orange-400/40 backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">⚡</span>
+                  <div>
+                    <p className="font-semibold text-orange-200">Lỗi lưu quy tắc</p>
+                    <p className="text-sm text-orange-100">{errors.save}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearError("save")}
+                  className="text-orange-300 hover:text-orange-200"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {errors.delete && (
+              <div className="flex items-center justify-between rounded-lg bg-rose-500/20 p-4 border border-rose-400/40 backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🗑️</span>
+                  <div>
+                    <p className="font-semibold text-rose-900 dark:text-rose-200">Lỗi xóa quy tắc</p>
+                    <p className="text-sm text-rose-100">{errors.delete}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearError("delete")}
+                  className="text-rose-900 dark:text-rose-200 hover:text-rose-800 dark:hover:text-rose-100"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {errors.toggle && (
+              <div className="flex items-center justify-between rounded-lg bg-amber-500/20 p-4 border border-amber-400/40 backdrop-blur">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">🔄</span>
+                  <div>
+                    <p className="font-semibold text-amber-200">Lỗi thay đổi trạng thái</p>
+                    <p className="text-sm text-amber-100">{errors.toggle}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => clearError("toggle")}
+                  className="text-amber-300 hover:text-amber-200"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <RuleForm
-          form={form}
-          setForm={setForm}
-          zones={zones}
-          floors={floors}
-          rooms={rooms}
-          deviceOptions={devices}
-          deviceTypeOptions={DEVICE_TYPE_OPTIONS}
-          isEditing={Boolean(editingId)}
-          onCancel={() => setIsModalOpen(false)}
-          onSave={handleSave}
-        />
-      </Modal>
+        <div className="flex flex-col gap-4 rounded-2xl bg-white/10 dark:bg-slate-800/40 backdrop-blur border border-white/20 p-6 shadow-lg lg:flex-row lg:items-center lg:justify-between">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Quy tắc Tự động</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleCreate}
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:shadow-emerald-500/50 hover:brightness-110 border border-emerald-400/30"
+            >
+              + Thêm quy tắc
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="rounded-xl bg-white/10 dark:bg-slate-800/40 backdrop-blur border border-white/20 p-4 text-center text-slate-700 dark:text-slate-300">
+            Đang tải dữ liệu...
+          </div>
+        ) : (
+          <RuleTable
+            rules={rules}
+            onDelete={handleDelete}
+            onToggle={handleToggle}
+            onEdit={handleEdit}
+          />
+        )}
+
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+          <RuleForm
+            form={form}
+            setForm={setForm}
+            zones={zones}
+            floors={floors}
+            rooms={rooms}
+            deviceOptions={devices}
+            deviceTypeOptions={DEVICE_TYPE_OPTIONS}
+            isEditing={Boolean(editingId)}
+            onCancel={() => setIsModalOpen(false)}
+            onSave={handleSave}
+          />
+        </Modal>
+      </div>
     </div>
   );
 };
