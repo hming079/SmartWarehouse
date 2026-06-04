@@ -32,6 +32,8 @@ export const createInitialAutomationForm = () => ({
   food_type: "General",
   actionDeviceIds: [],
   actionDeviceType: "fan",
+  actionType: "action",
+  actionOnOff: "on",
 });
 
 // Utility functions
@@ -176,8 +178,10 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       ...rule,
       actionDeviceIds: rule.action_device_ids ? String(rule.action_device_ids).split(",") : [],
       actionDeviceType: rule.action_device_types || "fan",
-      actionType: rule.action_name ? "action" : "alert",
-      actionOnOff: rule.action_name && rule.action_name.toLowerCase().includes("tắt") ? "off" : "on",
+      actionType: rule.action_mode || rule.action_name ? "action" : "alert",
+      actionOnOff:
+        rule.action_mode ||
+        (rule.action_name && rule.action_name.toLowerCase().includes("tắt") ? "off" : "on"),
     });
     setAutomationFormError("");
     setIsAutomationModalOpen(true);
@@ -308,6 +312,7 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       setAutomationFormError("");
       setMetaError("");
       if (editMode && form.rule_id) {
+        const isAlertOnly = form.actionType === "alert";
         // Update existing rule
         await api.updateAutomationRule(form.rule_id, {
           name,
@@ -316,13 +321,15 @@ export const useRoomDetail = (selectedRoomId, payload) => {
           metric: form.metric,
           compare_op: form.compare_op,
           threshold_value: thresholdValue,
-          action_name: form.action_name,
-          action_device_ids: (form.actionDeviceIds || []).join(","),
-          action_device_types: form.actionDeviceType ? form.actionDeviceType : "",
+          action_name: isAlertOnly ? "" : form.action_name,
+          action_mode: isAlertOnly ? null : form.actionOnOff || "on",
+          action_device_ids: isAlertOnly ? "" : (form.actionDeviceIds || []).join(","),
+          action_device_types: isAlertOnly ? "" : form.actionDeviceType ? form.actionDeviceType : "",
           alert_level: form.alert_level,
           is_active: true,
         });
       } else {
+        const isAlertOnly = form.actionType === "alert";
         // Create new rule
         await api.createAutomationRule({
           name,
@@ -331,9 +338,10 @@ export const useRoomDetail = (selectedRoomId, payload) => {
           metric: form.metric,
           compare_op: form.compare_op,
           threshold_value: thresholdValue,
-          action_name: form.action_name,
-          action_device_ids: (form.actionDeviceIds || []).join(","),
-          action_device_types: form.actionDeviceType ? form.actionDeviceType : "",
+          action_name: isAlertOnly ? "" : form.action_name,
+          action_mode: isAlertOnly ? null : form.actionOnOff || "on",
+          action_device_ids: isAlertOnly ? "" : (form.actionDeviceIds || []).join(","),
+          action_device_types: isAlertOnly ? "" : form.actionDeviceType ? form.actionDeviceType : "",
           alert_level: form.alert_level,
           is_active: true,
         });

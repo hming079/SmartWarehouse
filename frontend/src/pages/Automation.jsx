@@ -47,6 +47,10 @@ const Automation = () => {
     toggle: null,
     general: null,
   });
+  const [filterText, setFilterText] = useState("");
+  const [filterActive, setFilterActive] = useState("all"); // all | active | inactive
+  const [sortKey, setSortKey] = useState("name");
+  const [sortDir, setSortDir] = useState("asc");
 
   const mapRule = (r) => {
     // Extract and lookup device names with IDs
@@ -354,6 +358,9 @@ const Automation = () => {
   };
 
   const handleDelete = async (id) => {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa quy tắc này không?");
+    if (!confirmed) return;
+
     try {
       clearError("delete");
       await api.deleteAutomationRule(id);
@@ -478,6 +485,41 @@ const Automation = () => {
         <div className="flex flex-col gap-4 rounded-2xl bg-white/10 dark:bg-slate-800/40 backdrop-blur border border-white/20 p-6 shadow-lg lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Quy tắc Tự động</h1>
           <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                aria-label="Tìm kiếm quy tắc"
+                placeholder="Tìm tên, phòng, hành động..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                className="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-sm text-slate-900 dark:text-white"
+              />
+              <select
+                value={filterActive}
+                onChange={(e) => setFilterActive(e.target.value)}
+                className="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-sm text-slate-900 dark:text-white"
+              >
+                <option value="all">Tất cả</option>
+                <option value="active">Đang kích hoạt</option>
+                <option value="inactive">Không kích hoạt</option>
+              </select>
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value)}
+                className="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-sm text-slate-900 dark:text-white"
+              >
+                <option value="name">Tên</option>
+                <option value="alertLevel">Mức cảnh báo</option>
+                <option value="active">Trạng thái</option>
+              </select>
+              <button
+                onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                title="Đảo chiều sắp xếp"
+                className="rounded-lg px-3 py-2 bg-white/5 border border-white/10 text-sm text-slate-900 dark:text-white"
+              >
+                {sortDir === "asc" ? "A→Z" : "Z→A"}
+              </button>
+            </div>
+
             <button
               onClick={handleCreate}
               className="rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:shadow-emerald-500/50 hover:brightness-110 border border-emerald-400/30"
@@ -493,7 +535,33 @@ const Automation = () => {
           </div>
         ) : (
           <RuleTable
-            rules={rules}
+            rules={(
+              // Apply filter and sort client-side
+              (() => {
+                const text = filterText.trim().toLowerCase();
+                const filtered = (rules || []).filter((r) => {
+                  if (filterActive === "active" && !r.active) return false;
+                  if (filterActive === "inactive" && r.active) return false;
+                  if (!text) return true;
+                  const hay = [r.name, r.applyTo, r.action, (r.devices || []).join(",")]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+                  return hay.includes(text);
+                });
+
+                const levelOrder = { Low: 0, Medium: 1, High: 2 };
+                filtered.sort((a, b) => {
+                  let cmp = 0;
+                  if (sortKey === "name") cmp = (a.name || "").localeCompare(b.name || "");
+                  else if (sortKey === "alertLevel") cmp = ( (levelOrder[a.alertLevel] ?? 0) - (levelOrder[b.alertLevel] ?? 0) );
+                  else if (sortKey === "active") cmp = (Number(a.active) - Number(b.active));
+                  if (sortDir === "desc") cmp = -cmp;
+                  return cmp;
+                });
+                return filtered;
+              })()
+            )}
             onDelete={handleDelete}
             onToggle={handleToggle}
             onEdit={handleEdit}

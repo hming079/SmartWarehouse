@@ -100,19 +100,12 @@ async function ensureDevicesScheduleColumn() {
     BEGIN
       ALTER TABLE dbo.Shedules ADD is_active BIT NULL;
     END;
+  `);
 
-    IF COL_LENGTH('dbo.Shedules', 'action') IS NOT NULL
-    BEGIN
-      UPDATE dbo.Shedules
-      SET is_active = CASE WHEN action = 'POWER_OFF' THEN 0 ELSE 1 END
-      WHERE is_active IS NULL;
-    END
-    ELSE
-    BEGIN
-      UPDATE dbo.Shedules
-      SET is_active = 1
-      WHERE is_active IS NULL;
-    END;
+  await pool.request().batch(`
+    UPDATE dbo.Shedules
+    SET is_active = CASE WHEN action = 'POWER_OFF' THEN 0 ELSE 1 END
+    WHERE is_active IS NULL;
 
     IF EXISTS (
       SELECT 1
@@ -138,12 +131,16 @@ async function ensureDevicesScheduleColumn() {
       ALTER TABLE dbo.Shedules
       ADD CONSTRAINT DF_Shedules_is_active DEFAULT (1) FOR is_active;
     END;
+  `);
 
+  await pool.request().batch(`
     IF COL_LENGTH('dbo.Devices', 'shedule_id') IS NULL
     BEGIN
       ALTER TABLE dbo.Devices ADD shedule_id INT NULL;
     END;
+  `);
 
+  await pool.request().batch(`
     -- Remove invalid references before creating FK to avoid
     -- "Could not create constraint or index" errors on existing data.
     UPDATE d

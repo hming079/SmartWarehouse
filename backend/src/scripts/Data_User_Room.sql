@@ -1,15 +1,15 @@
-﻿USE SmartWarehouse;
-GO
+﻿-- USE SmartWarehouse;
+-- GO
 
-DELETE FROM dbo.UserPermissionAssignment; 
-DELETE FROM dbo.RolePermissions; 
-DELETE FROM dbo.Users; 
-DELETE FROM dbo.Role;  
-DELETE FROM dbo.Rooms;     
-DELETE FROM dbo.FoodTypes; 
-DELETE FROM dbo.Floor;     
-DELETE FROM dbo.Zones;     
-DELETE FROM dbo.Locations; 
+-- DELETE FROM dbo.UserPermissionAssignment; 
+-- DELETE FROM dbo.RolePermissions; 
+-- DELETE FROM dbo.Users; 
+-- DELETE FROM dbo.Role;  
+-- DELETE FROM dbo.Rooms;     
+-- DELETE FROM dbo.FoodTypes; 
+-- DELETE FROM dbo.Floor;     
+-- DELETE FROM dbo.Zones;     
+-- DELETE FROM dbo.Locations; 
 
 
 USE SmartWarehouse;

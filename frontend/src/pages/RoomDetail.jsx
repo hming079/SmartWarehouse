@@ -402,7 +402,7 @@ const RoomDetail = () => {
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300 border border-emerald-500/30">Hoat dong</span>
+        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoat dong</span>
       </div>
 
       {roomFoodTypeName ? (
@@ -585,7 +585,7 @@ const RoomDetail = () => {
                     type="button"
                     onClick={() => handleToggleDevice(device.id)}
                     disabled={pendingControlIds.includes(device.id)}
-                    className={`h-6 w-10 rounded-full p-1 transition ${device.status === "on" ? "bg-blue-500" : "bg-white/20"} ${pendingControlIds.includes(device.id) ? "cursor-not-allowed opacity-60" : ""}`}
+                    className={`h-6 w-10 rounded-full border p-1 transition ${device.status === "on" ? "border-blue-300/40 bg-blue-500" : "border-slate-500/70 bg-slate-700/70 shadow-inner shadow-black/20"} ${pendingControlIds.includes(device.id) ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className={`block h-4 w-4 rounded-full bg-white transition ${device.status === "on" ? "translate-x-4" : "translate-x-0"}`} />
                   </button>
@@ -628,7 +628,7 @@ const RoomDetail = () => {
               <div key={rule.rule_id} className="rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2 transition hover:border-blue-400/50">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{rule.name || `Rule ${rule.rule_id}`}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${rule.is_active ? "bg-emerald-500/30 text-emerald-300 border-emerald-400/30" : "bg-white/10 text-white/70 border-white/20"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold border ${rule.is_active ? "bg-emerald-500/30 text-emerald-950 border-emerald-400/30 dark:text-emerald-100" : "bg-slate-200/20 text-slate-900 border-slate-300/30 dark:text-slate-200 dark:bg-slate-500/15 dark:border-slate-400/25"}`}>
                     {rule.is_active ? "Active" : "Off"}
                   </span>
                 </div>
@@ -698,7 +698,7 @@ const RoomDetail = () => {
               <div key={item.id} className="rounded-xl border border-indigo-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur px-3 py-2 transition hover:border-indigo-400/50">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.name || `Schedule ${item.id}`}</p>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold border ${item.is_active ? "bg-emerald-500/30 text-emerald-300 border-emerald-400/30" : "bg-white/10 text-white/70 border-white/20"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold border ${item.is_active ? "bg-emerald-500/30 text-emerald-950 border-emerald-400/30 dark:text-emerald-100" : "bg-slate-200/20 text-slate-900 border-slate-300/30 dark:text-slate-200 dark:bg-slate-500/15 dark:border-slate-400/25"}`}>
                     {item.is_active ? "Active" : "Off"}
                   </span>
                 </div>

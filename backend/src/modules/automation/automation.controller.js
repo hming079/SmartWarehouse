@@ -1,3 +1,29 @@
+function deriveActionMode(actionMode, actionName) {
+  const normalizedMode = String(actionMode || "")
+    .trim()
+    .toLowerCase();
+  if (normalizedMode === "on" || normalizedMode === "off") {
+    return normalizedMode;
+  }
+
+  const normalizedName = String(actionName || "")
+    .trim()
+    .toLowerCase();
+  if (!normalizedName) {
+    return null;
+  }
+
+  if (normalizedName.includes("tắt") || normalizedName.includes("tat") || normalizedName.includes("off")) {
+    return "off";
+  }
+
+  if (normalizedName.includes("bật") || normalizedName.includes("bat") || normalizedName.includes("on")) {
+    return "on";
+  }
+
+  return null;
+}
+
 // PATCH /automation/:id - update automation rule
 async function patchUpdateRule(req, res, next) {
   try {
@@ -45,7 +71,7 @@ async function patchUpdateRule(req, res, next) {
       compare_op,
       threshold_value: Number(threshold_value),
       action_id: action_id || null,
-      action_mode: action_mode || null,
+      action_mode: deriveActionMode(action_mode, action_name),
       device_ids: Array.isArray(device_ids) ? device_ids : [],
       alert_level,
       is_active: is_active !== undefined ? is_active : true,
@@ -115,7 +141,7 @@ async function postRule(req, res, next) {
       compare_op,
       threshold_value: Number(threshold_value),
       action_id: action_id || null,
-      action_mode: action_mode || null,
+      action_mode: deriveActionMode(action_mode, action_name),
       device_ids: Array.isArray(device_ids) ? device_ids : [],
       alert_level,
       is_active: is_active !== undefined ? is_active : true,

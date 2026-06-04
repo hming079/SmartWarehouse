@@ -3,36 +3,36 @@
   Run this file with sqlcmd inside the Docker container.
 */
 
-IF DB_ID(N'SmartWarehouse') IS NULL
-BEGIN
-  CREATE DATABASE SmartWarehouse;
-END
-GO
+-- IF DB_ID(N'SmartWarehouse') IS NULL
+-- BEGIN
+--   CREATE DATABASE SmartWarehouse;
+-- END
+-- GO
 
-USE SmartWarehouse;
-GO
+-- USE SmartWarehouse;
+-- GO
 
-IF OBJECT_ID(N'dbo.AlertSubscriptions', N'U') IS NOT NULL DROP TABLE dbo.AlertSubscriptions;
-IF OBJECT_ID(N'dbo.UserPermissionAssignment', N'U') IS NOT NULL DROP TABLE dbo.UserPermissionAssignment;
-IF OBJECT_ID(N'dbo.ActionLog', N'U') IS NOT NULL DROP TABLE dbo.ActionLog;
-IF OBJECT_ID(N'dbo.SensorData', N'U') IS NOT NULL DROP TABLE dbo.SensorData;
-IF OBJECT_ID(N'dbo.DevicesLog', N'U') IS NOT NULL DROP TABLE dbo.DevicesLog;
-IF OBJECT_ID(N'dbo.Sensors', N'U') IS NOT NULL DROP TABLE dbo.Sensors;
-IF OBJECT_ID(N'dbo.Alerts', N'U') IS NOT NULL DROP TABLE dbo.Alerts;
-IF OBJECT_ID(N'dbo.Shedules', N'U') IS NOT NULL DROP TABLE dbo.Shedules;
-IF OBJECT_ID(N'dbo.Devices', N'U') IS NOT NULL DROP TABLE dbo.Devices;
-IF OBJECT_ID(N'dbo.Threshold', N'U') IS NOT NULL DROP TABLE dbo.Threshold;
-IF OBJECT_ID(N'dbo.Rooms', N'U') IS NOT NULL DROP TABLE dbo.Rooms;
-IF OBJECT_ID(N'dbo.Floor', N'U') IS NOT NULL DROP TABLE dbo.Floor;
-IF OBJECT_ID(N'dbo.Zones', N'U') IS NOT NULL DROP TABLE dbo.Zones;
-IF OBJECT_ID(N'dbo.Locations', N'U') IS NOT NULL DROP TABLE dbo.Locations;
-IF OBJECT_ID(N'dbo.RolePermissions', N'U') IS NOT NULL DROP TABLE dbo.RolePermissions;
-IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL DROP TABLE dbo.Users;
-IF OBJECT_ID(N'dbo.Role', N'U') IS NOT NULL DROP TABLE dbo.Role;
-IF OBJECT_ID(N'dbo.Actions', N'U') IS NOT NULL DROP TABLE dbo.Actions;
-IF OBJECT_ID(N'dbo.AutomationRules', N'U') IS NOT NULL DROP TABLE dbo.AutomationRules;
-IF OBJECT_ID(N'dbo.FoodTypes', N'U') IS NOT NULL DROP TABLE dbo.FoodTypes;
-GO
+-- IF OBJECT_ID(N'dbo.AlertSubscriptions', N'U') IS NOT NULL DROP TABLE dbo.AlertSubscriptions;
+-- IF OBJECT_ID(N'dbo.UserPermissionAssignment', N'U') IS NOT NULL DROP TABLE dbo.UserPermissionAssignment;
+-- IF OBJECT_ID(N'dbo.ActionLog', N'U') IS NOT NULL DROP TABLE dbo.ActionLog;
+-- IF OBJECT_ID(N'dbo.SensorData', N'U') IS NOT NULL DROP TABLE dbo.SensorData;
+-- IF OBJECT_ID(N'dbo.DevicesLog', N'U') IS NOT NULL DROP TABLE dbo.DevicesLog;
+-- IF OBJECT_ID(N'dbo.Sensors', N'U') IS NOT NULL DROP TABLE dbo.Sensors;
+-- IF OBJECT_ID(N'dbo.Alerts', N'U') IS NOT NULL DROP TABLE dbo.Alerts;
+-- IF OBJECT_ID(N'dbo.Shedules', N'U') IS NOT NULL DROP TABLE dbo.Shedules;
+-- IF OBJECT_ID(N'dbo.Devices', N'U') IS NOT NULL DROP TABLE dbo.Devices;
+-- IF OBJECT_ID(N'dbo.Threshold', N'U') IS NOT NULL DROP TABLE dbo.Threshold;
+-- IF OBJECT_ID(N'dbo.Rooms', N'U') IS NOT NULL DROP TABLE dbo.Rooms;
+-- IF OBJECT_ID(N'dbo.Floor', N'U') IS NOT NULL DROP TABLE dbo.Floor;
+-- IF OBJECT_ID(N'dbo.Zones', N'U') IS NOT NULL DROP TABLE dbo.Zones;
+-- IF OBJECT_ID(N'dbo.Locations', N'U') IS NOT NULL DROP TABLE dbo.Locations;
+-- IF OBJECT_ID(N'dbo.RolePermissions', N'U') IS NOT NULL DROP TABLE dbo.RolePermissions;
+-- IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL DROP TABLE dbo.Users;
+-- IF OBJECT_ID(N'dbo.Role', N'U') IS NOT NULL DROP TABLE dbo.Role;
+-- IF OBJECT_ID(N'dbo.Actions', N'U') IS NOT NULL DROP TABLE dbo.Actions;
+-- IF OBJECT_ID(N'dbo.AutomationRules', N'U') IS NOT NULL DROP TABLE dbo.AutomationRules;
+-- IF OBJECT_ID(N'dbo.FoodTypes', N'U') IS NOT NULL DROP TABLE dbo.FoodTypes;
+-- GO
 
 CREATE TABLE dbo.Role (
   role_id INT NOT NULL PRIMARY KEY,
@@ -247,8 +247,8 @@ ALTER TABLE dbo.Zones ADD CONSTRAINT FK_Zones_Location FOREIGN KEY (location_id)
 ALTER TABLE dbo.Floor ADD CONSTRAINT FK_Floor_Zone FOREIGN KEY (zone_id) REFERENCES dbo.Zones(zone_id);
 ALTER TABLE dbo.Rooms ADD CONSTRAINT FK_Rooms_Floor FOREIGN KEY (floor_id) REFERENCES dbo.Floor(floor_id);
 ALTER TABLE dbo.Rooms ADD CONSTRAINT FK_Rooms_FoodType FOREIGN KEY (food_type_id) REFERENCES dbo.FoodTypes(type_id);
-ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Device FOREIGN KEY (device_id) REFERENCES dbo.Devices(device_id) ON DELETE SET NULL;
-ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Action FOREIGN KEY (action_id) REFERENCES dbo.Actions(action_id) ON DELETE SET NULL;
+-- ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Device FOREIGN KEY (device_id) REFERENCES dbo.Devices(device_id) ON DELETE SET NULL;
+-- ALTER TABLE dbo.Shedules ADD CONSTRAINT FK_Shedules_Action FOREIGN KEY (action_id) REFERENCES dbo.Actions(action_id) ON DELETE SET NULL;
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Threshold FOREIGN KEY (threshold_id) REFERENCES dbo.Threshold(threshold_id);
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Shedule FOREIGN KEY (shedule_id) REFERENCES dbo.Shedules(shedule_id);
 ALTER TABLE dbo.Sensors ADD CONSTRAINT FK_Sensors_Room FOREIGN KEY (room_id) REFERENCES dbo.Rooms(room_id);
@@ -377,8 +377,8 @@ END;
 GO
 
 
-USE SmartWarehouse;
-GO
+-- USE SmartWarehouse;
+-- GO
 
 -- 1) Drop old FKs that depend on old columns (if they exist)
 IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_Shedules_Device')
@@ -427,10 +427,10 @@ IF COL_LENGTH('dbo.Shedules', 'action_id') IS NOT NULL
   ALTER TABLE dbo.Shedules DROP COLUMN action_id;
 GO
 
-ALTER TABLE dbo.Alerts
-ADD rule_id INT NULL,
-    CONSTRAINT FK_Alerts_AutomationRule 
-    FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id);
+-- ALTER TABLE dbo.Alerts
+-- ADD rule_id INT NULL,
+--     CONSTRAINT FK_Alerts_AutomationRule 
+--     FOREIGN KEY (rule_id) REFERENCES dbo.AutomationRules(rule_id);
 
 alter table automationrules
 alter column apply_to nvarchar(255) null;

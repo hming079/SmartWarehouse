@@ -271,7 +271,20 @@ async function listRules() {
       COALESCE(ft.name, rft.name, ar.food_type) AS food_type_name,
       ar.action_id,
       a.action_name AS action_name_normalized,
-      ar.action_mode,
+      COALESCE(
+        ar.action_mode,
+        CASE
+          WHEN LOWER(COALESCE(ar.action_name, '')) LIKE N'%tắt%'
+            OR LOWER(COALESCE(ar.action_name, '')) LIKE '%tat%'
+            OR LOWER(COALESCE(ar.action_name, '')) LIKE '%off%'
+          THEN 'off'
+          WHEN LOWER(COALESCE(ar.action_name, '')) LIKE N'%bật%'
+            OR LOWER(COALESCE(ar.action_name, '')) LIKE '%bat%'
+            OR LOWER(COALESCE(ar.action_name, '')) LIKE '%on%'
+          THEN 'on'
+          ELSE NULL
+        END
+      ) AS action_mode,
       STRING_AGG(CONVERT(NVARCHAR(50), ard.device_id), ',') WITHIN GROUP (ORDER BY ard.device_id) AS action_device_ids_normalized
     FROM dbo.AutomationRules ar
     LEFT JOIN dbo.Rooms r ON r.room_id = ar.room_id
@@ -300,6 +313,7 @@ async function createRule(payload) {
     action_device_types,
     alert_level,
     is_active,
+    action_mode,
     // Normalized fields
     room_id,
     food_type_id,
@@ -354,7 +368,7 @@ async function createRule(payload) {
     .input("room_id", sql.Int, room_id || null)
     .input("food_type_id", sql.Int, derivedFoodTypeId)
     .input("action_id", sql.Int, action_id || null)
-    .input("action_mode", sql.NVarChar, payload.action_mode || null)
+    .input("action_mode", sql.NVarChar, action_mode || null)
     .query(`
       INSERT INTO dbo.AutomationRules (
         rule_id, name, apply_to, food_type, metric, compare_op,
