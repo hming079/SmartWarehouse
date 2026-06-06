@@ -16,6 +16,7 @@ import {
   isTelemetryDevice,
 } from "../hooks/roomDetail/useRoomDetail";
 import Modal from "../components/ui/Modal";
+import { getFoodTypeDisplay } from "../utils/foodTypes";
 
 const RANGE_OPTIONS = [
   { value: "24h", label: "24 hours" },
@@ -40,18 +41,6 @@ function formatTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString();
-}
-
-function getFoodTypeIcon(foodTypeName) {
-  const normalized = String(foodTypeName || "").toLowerCase();
-  if (normalized.includes("thịt") || normalized.includes("thit") || normalized.includes("bò") || normalized.includes("bo") || normalized.includes("gà") || normalized.includes("ga")) return "🥩";
-  if (normalized.includes("rau")) return "🥕";
-  if (normalized.includes("hải sản") || normalized.includes("hai san") || normalized.includes("cá") || normalized.includes("ca")) return "🐟";
-  if (normalized.includes("sữa") || normalized.includes("sua")) return "🥛";
-  if (normalized.includes("trái cây") || normalized.includes("trai cay")) return "🍎";
-  if (normalized.includes("nước") || normalized.includes("nuoc") || normalized.includes("đồ uống") || normalized.includes("do uong")) return "🥤";
-  if (normalized.includes("khô") || normalized.includes("kho")) return "📦";
-  return "🍽️";
 }
 
 function TimeseriesChart({ points, metric }) {
@@ -198,7 +187,7 @@ const RoomDetail = () => {
   const roomTitle = roomMatchesSelection ? stateRoom.name : `Phong ${selectedRoomId || roomId}`;
   const roomDescription = roomMatchesSelection ? stateRoom.description : "Theo doi trang thai nhiet do, do am va thiet bi trong phong.";
   const roomFoodTypeName = roomMatchesSelection ? stateRoom.food_type_name : "";
-  const roomFoodTypeIcon = getFoodTypeIcon(roomFoodTypeName);
+  const roomFoodTypeDisplay = getFoodTypeDisplay(roomFoodTypeName);
   const selectedAreaId = searchParams.get("areaId") || "";
   const selectedFloorId = searchParams.get("floorId") || "";
   const [metric, setMetric] = useState("temperature");
@@ -394,7 +383,7 @@ const RoomDetail = () => {
             onClick={handleBack}
             className="mb-3 inline-flex items-center gap-2 rounded-lg border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-sm text-slate-900 dark:text-white transition hover:bg-blue-500/20"
           >
-            <ChevronLeft size={16} /> Quay lai Area
+            <ChevronLeft size={16} /> Quay lại trang Area
           </button>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">{roomTitle}</h1>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
@@ -402,12 +391,12 @@ const RoomDetail = () => {
           </p>
         </div>
 
-        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoat dong</span>
+        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoạt động</span>
       </div>
 
       {roomFoodTypeName ? (
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-sm text-blue-900 dark:text-blue-100">
-          <span className="text-base" aria-hidden="true">{roomFoodTypeIcon}</span>
+          <span className="text-base" aria-hidden="true">{roomFoodTypeDisplay.icon}</span>
           <span>Loại thực phẩm: {roomFoodTypeName}</span>
         </div>
       ) : null}

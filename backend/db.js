@@ -49,6 +49,8 @@ const SCHEMA_SCRIPT_PATH =
 const SEED_SCRIPT_PATH =
   process.env.DB_SEED_SCRIPT_PATH ||
   path.resolve(__dirname, "src/scripts/Data_User_Room.sql");
+const MIGRATION_FIX_DEVICES_LOG_TRIGGER_PATH =
+  path.resolve(__dirname, "src/scripts/migrations/001_fix_devices_log_trigger.sql");
 
 function validateDbConfig() {
   if (!dbConfig.password) {
@@ -142,6 +144,10 @@ async function runAutoInitIfEnabled(pool) {
   await autoInitPromise;
 }
 
+async function runRequiredMigrations(pool) {
+  await runSqlFile(pool, MIGRATION_FIX_DEVICES_LOG_TRIGGER_PATH);
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -206,6 +212,7 @@ function getPool() {
     poolPromise = (async () => {
       try {
         const pool = await connectWithRetry();
+        await runRequiredMigrations(pool);
         await runAutoInitIfEnabled(pool);
         return pool;
       } catch (err) {
@@ -221,6 +228,7 @@ function getPool() {
           );
           await ensureDatabaseExists();
           const recoveredPool = await connectWithRetry();
+          await runRequiredMigrations(recoveredPool);
           await runAutoInitIfEnabled(recoveredPool);
           return recoveredPool;
         }

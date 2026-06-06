@@ -62,7 +62,7 @@ async function postDevice(req, res, next) {
       code: "CREATE_DEVICE",
       name: "Create Device",
       targetType: "DEVICE",
-      targetId: data.device_id,
+      targetId: data.id ?? data.device_id,
       newValue: req.body || {},
       actorUserId: req.user?.user_id,
     });

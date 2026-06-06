@@ -368,10 +368,12 @@ BEGIN
 
         INSERT INTO dbo.DevicesLog (device_id, device_status, [timestamp])
         SELECT DISTINCT
-            tu.device_id,
-            tu.new_status,
-            SYSUTCDATETIME()
-        FROM @DevicesToUpdate tu;
+          tu.device_id,
+          tu.new_status,
+          SYSUTCDATETIME()
+        FROM @DevicesToUpdate tu
+        INNER JOIN dbo.Devices d
+          ON d.device_id = tu.device_id;
     END
 END;
 GO
@@ -438,3 +440,15 @@ alter table automationrules
 alter column food_type nvarchar(255) null;
 alter table automationrules
 alter column action_name nvarchar(255) null;
+
+-- Add a cause column with allowed values and default
+ALTER TABLE device_logs
+  ADD COLUMN cause VARCHAR(32) NOT NULL DEFAULT 'system';
+
+ALTER TABLE device_logs
+  ADD CONSTRAINT device_logs_cause_check CHECK (
+    cause IN ('automation_rule','manual_control','system','schedule')
+  );
+
+-- Ensure existing rows have a valid value
+UPDATE device_logs SET cause = 'system' WHERE cause IS NULL;

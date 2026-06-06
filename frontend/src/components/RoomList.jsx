@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getFoodTypeDisplay } from "../utils/foodTypes";
 
 const RoomList = ({ rooms, selectedFloor, foodTypes = [], onAdd, onDelete, onSelect }) => {
   const [name, setName] = useState("");
@@ -6,11 +7,16 @@ const RoomList = ({ rooms, selectedFloor, foodTypes = [], onAdd, onDelete, onSel
   const [foodTypeId, setFoodTypeId] = useState("");
   const disabled = !selectedFloor;
 
+  const defaultFoodTypeId =
+    foodTypes[0]?.type_id !== undefined && foodTypes[0]?.type_id !== null
+      ? String(foodTypes[0].type_id)
+      : "";
+
   const resolvedFoodTypeId =
     foodTypeId
-    || (foodTypes[0]?.type_id !== undefined && foodTypes[0]?.type_id !== null
-      ? String(foodTypes[0].type_id)
-      : "");
+    || defaultFoodTypeId;
+
+  const selectedFoodType = foodTypes.find((item) => String(item.type_id) === resolvedFoodTypeId) || foodTypes[0] || null;
 
   const handleAdd = async () => {
     const roomName = name.trim();
@@ -45,20 +51,35 @@ const RoomList = ({ rooms, selectedFloor, foodTypes = [], onAdd, onDelete, onSel
           placeholder="Mô tả"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-purple-500 disabled:bg-gray-100"
         />
-        <select
-          value={resolvedFoodTypeId}
-          disabled={disabled || foodTypes.length === 0}
-          onChange={(e) => setFoodTypeId(e.target.value)}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-purple-500 disabled:bg-gray-100"
-        >
-          {foodTypes.length === 0 ? (
-            <option value="">Chưa có loại thực phẩm</option>
-          ) : (
-            foodTypes.map((item) => (
-              <option key={item.type_id} value={item.type_id}>{item.name}</option>
-            ))
-          )}
-        </select>
+        {foodTypes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-500">
+            Chưa có loại thực phẩm
+          </div>
+        ) : (
+          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Loại thực phẩm</p>
+              {selectedFoodType ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-medium text-gray-700 shadow-sm">
+                  <span aria-hidden="true">{getFoodTypeDisplay(selectedFoodType.name).icon}</span>
+                  <span>{selectedFoodType.name}</span>
+                </span>
+              ) : null}
+            </div>
+            <select
+              value={resolvedFoodTypeId}
+              disabled={disabled || foodTypes.length === 0}
+              onChange={(e) => setFoodTypeId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-purple-500 disabled:bg-gray-100"
+            >
+              {foodTypes.map((item) => (
+                <option key={item.type_id} value={item.type_id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <button
           onClick={handleAdd}
           disabled={disabled || foodTypes.length === 0}
@@ -76,7 +97,12 @@ const RoomList = ({ rooms, selectedFloor, foodTypes = [], onAdd, onDelete, onSel
           >
             <button onClick={() => onSelect?.(room)} className="flex-1 text-left">
               <p className="text-sm font-medium text-gray-800">{room.name}</p>
-              {room.food_type_name ? <p className="text-xs text-indigo-600">{room.food_type_name}</p> : null}
+              {room.food_type_name ? (
+                <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-indigo-600">
+                  <span aria-hidden="true">{getFoodTypeDisplay(room.food_type_name).icon}</span>
+                  <span>{room.food_type_name}</span>
+                </p>
+              ) : null}
               {room.description ? <p className="text-xs text-gray-500">{room.description}</p> : null}
             </button>
             <button

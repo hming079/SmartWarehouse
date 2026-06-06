@@ -11,6 +11,7 @@ import AuditLogs from "./pages/AuditLogs";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
+import { hasValidToken } from "./utils/auth";
 
 const UnauthenticatedNotice = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#f5f3fb] px-4">
@@ -24,22 +25,19 @@ const UnauthenticatedNotice = () => (
   </div>
 );
 
-const hasValidToken = () => {
-  const token = localStorage.getItem("auth_token");
-  return Boolean(token && token !== "null" && token !== "undefined");
-};
-
 const PrivateRoute = ({ children }) => {
   return hasValidToken() ? children : <UnauthenticatedNotice />;
 };
 
-const App = () => {
-  const token = hasValidToken();
+const LoginRoute = () => {
+  return hasValidToken() ? <Navigate to="/home" replace /> : <Login />;
+};
 
+const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={token ? <Navigate to="/home" replace /> : <Login />} />
+        <Route path="/login" element={<LoginRoute />} />
 
         <Route
           path="/"

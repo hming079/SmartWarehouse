@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { hasValidToken } from "../utils/auth";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,8 +10,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const token = localStorage.getItem("auth_token");
-  if (token) {
+  if (hasValidToken()) {
     return <Navigate to="/home" replace />;
   }
 

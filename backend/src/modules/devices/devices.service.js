@@ -65,9 +65,52 @@ async function getDeviceById(deviceId) {
 }
 
 async function createDevice(payload) {
-  return {
+  const roomId = Number(payload?.room_id ?? payload?.roomId);
+  const deviceType = String(payload?.device_type ?? payload?.deviceType ?? "").trim();
+  const deviceStatus = String(payload?.device_status ?? payload?.deviceStatus ?? "OFF").trim().toUpperCase() === "ON" ? "ON" : "OFF";
+
+  if (!Number.isInteger(roomId) || roomId <= 0) {
+    throw createHttpError(400, "room_id is required");
+  }
+
+  if (!deviceType) {
+    throw createHttpError(400, "device_type is required");
+  }
+
+  const pool = await getPool();
+  const roomExists = await pool.request()
+    .input("roomId", sql.Int, roomId)
+    .query(`
+      SELECT TOP 1 room_id
+      FROM dbo.Rooms
+      WHERE room_id = @roomId
+    `);
+
+  if (!roomExists.recordset.length) {
+    throw createHttpError(404, `Room ${roomId} not found`);
+  }
+
+  const result = await pool.request()
+    .input("roomId", sql.Int, roomId)
+    .input("deviceType", sql.NVarChar(50), deviceType)
+    .input("deviceStatus", sql.NVarChar(5), deviceStatus)
+    .query(`
+      INSERT INTO dbo.Devices (room_id, device_status, last_update_time, device_type)
+      OUTPUT INSERTED.device_id AS id,
+             INSERTED.room_id,
+             INSERTED.device_type AS type,
+             INSERTED.device_status AS status,
+             INSERTED.last_update_time,
+             NULL AS room_name
+      VALUES (@roomId, @deviceStatus, SYSUTCDATETIME(), @deviceType);
+    `);
+
+  return result.recordset[0] || {
     id: null,
-    ...payload,
+    device_id: null,
+    room_id: roomId,
+    type: deviceType,
+    status: deviceStatus,
   };
 }
 
