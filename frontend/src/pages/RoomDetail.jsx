@@ -828,7 +828,7 @@ const RoomDetail = () => {
             <button
               onClick={handleExportAudit}
               disabled={busyKey === "audit-export"}
-              className="rounded-lg bg-blue-500/30 border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/40 hover:border-blue-400/50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-blue-500/30 border border-blue-400/30 px-3 py-1.5 text-xs font-semibold text-blue-400 transition hover:bg-blue-500/40 hover:border-blue-600/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busyKey === "audit-export" ? "Dang export..." : "Export CSV"}
             </button>
@@ -871,7 +871,10 @@ const RoomDetail = () => {
                       <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
                         {group.logs.slice(0, 10).map((log) => (
                           <div key={log.id} className="flex items-center justify-between gap-2 rounded-md bg-white/10 px-2 py-1">
-                            <span className="font-medium text-slate-900 dark:text-white">{log.status || "--"}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-slate-900 dark:text-white">{log.status || "--"}</span>
+                              <span className="text-[11px] rounded px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">{(log.cause || "--").replace(/_/g, ' ')}</span>
+                            </div>
                             <span className="text-slate-700 dark:text-slate-300">{formatDateTime(log.timestamp)}</span>
                           </div>
                         ))}

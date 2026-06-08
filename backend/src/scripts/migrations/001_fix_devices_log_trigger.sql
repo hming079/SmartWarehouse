@@ -58,10 +58,11 @@ BEGIN
             ON tu.device_id = d.device_id
         WHERE d.device_status <> tu.new_status;
 
-        INSERT INTO dbo.DevicesLog (device_id, device_status, [timestamp])
+        INSERT INTO dbo.DevicesLog (device_id, device_status, cause, [timestamp])
         SELECT DISTINCT
             tu.device_id,
             tu.new_status,
+            'automation_rule',
             SYSUTCDATETIME()
         FROM @DevicesToUpdate tu
         INNER JOIN dbo.Devices d

@@ -649,8 +649,8 @@ async function upsertDeviceAndInsertLog({
 
       IF @prevStatus IS NULL OR @prevStatus <> @status
       BEGIN
-        INSERT INTO dbo.DevicesLog (device_id, device_status)
-        VALUES (@deviceId, @status);
+        INSERT INTO dbo.DevicesLog (device_id, device_status, cause)
+        VALUES (@deviceId, @status, 'system');
         SET @logInserted = 1;
       END;
 
@@ -701,8 +701,8 @@ async function upsertDeviceStatusDirect({ roomId, deviceKey, status }) {
 
       IF @prevStatus IS NULL OR @prevStatus <> @status
       BEGIN
-        INSERT INTO dbo.DevicesLog (device_id, device_status)
-        VALUES (@deviceId, @status);
+        INSERT INTO dbo.DevicesLog (device_id, device_status, cause)
+        VALUES (@deviceId, @status, 'system');
         SET @logInserted = 1;
       END;
 

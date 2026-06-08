@@ -229,6 +229,7 @@ CREATE TABLE dbo.DevicesLog (
   device_log_id INT IDENTITY(1,1) NOT NULL,
   device_id INT NOT NULL,
   device_status NVARCHAR(5) NOT NULL CHECK (device_status IN ('ON', 'OFF')),
+  cause NVARCHAR(32) NULL DEFAULT ('system'),
   [timestamp] DATETIME2 NOT NULL DEFAULT (SYSUTCDATETIME()),
   PRIMARY KEY (device_log_id)
 );
@@ -366,10 +367,11 @@ BEGIN
             ON tu.device_id = d.device_id
         WHERE d.device_status <> tu.new_status;
 
-        INSERT INTO dbo.DevicesLog (device_id, device_status, [timestamp])
+        INSERT INTO dbo.DevicesLog (device_id, device_status, cause, [timestamp])
         SELECT DISTINCT
           tu.device_id,
           tu.new_status,
+          'automation_rule',
           SYSUTCDATETIME()
         FROM @DevicesToUpdate tu
         INNER JOIN dbo.Devices d
@@ -442,13 +444,4 @@ alter table automationrules
 alter column action_name nvarchar(255) null;
 
 -- Add a cause column with allowed values and default
-ALTER TABLE device_logs
-  ADD COLUMN cause VARCHAR(32) NOT NULL DEFAULT 'system';
-
-ALTER TABLE device_logs
-  ADD CONSTRAINT device_logs_cause_check CHECK (
-    cause IN ('automation_rule','manual_control','system','schedule')
-  );
-
--- Ensure existing rows have a valid value
-UPDATE device_logs SET cause = 'system' WHERE cause IS NULL;
+-- (Cause column added above in DevicesLog definition.)

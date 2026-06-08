@@ -184,8 +184,8 @@ async function toggleDevice(deviceId) {
         last_update_time = SYSUTCDATETIME()
     WHERE device_id = @id;
 
-    INSERT INTO dbo.DevicesLog (device_id, device_status)
-    VALUES (@id, @nextStatus);
+    INSERT INTO dbo.DevicesLog (device_id, device_status, cause)
+    VALUES (@id, @nextStatus, 'manual_control');
 
     SELECT CAST(1 AS BIT) AS updated, @nextStatus AS status;
   `);
@@ -224,8 +224,9 @@ async function getDeviceLogs({ roomId, page = 1, pageSize = 20 }) {
       d.device_type AS type,
       d.room_id,
       r.name AS room_name,
-      dl.device_status AS status,
-      dl.timestamp AS timestamp
+        dl.device_status AS status,
+        dl.cause AS cause,
+        dl.timestamp AS timestamp
     FROM dbo.DevicesLog dl
     JOIN dbo.Devices d ON dl.device_id = d.device_id
     LEFT JOIN dbo.Rooms r ON d.room_id = r.room_id
