@@ -86,6 +86,8 @@ const AreaManagement = () => {
   };
 
   const handleDeleteZone = async (zoneId) => {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa khu này không?");
+    if (!confirmed) return;
     try {
       await api.deleteZone(zoneId);
       await loadZones();
@@ -100,10 +102,25 @@ const AreaManagement = () => {
     }
   };
 
-  const handleAddFloor = async (floorNumber) => {
+const handleAddFloor = async () => {
     if (!selectedZone) return;
     try {
-      await api.createFloor({ zone_id: selectedZone.zone_id, floor_number: floorNumber });
+      // 1. Tìm số tầng lớn nhất hiện tại trong danh sách 'floors'
+      // Nếu danh sách trống (chưa có tầng nào), số tầng mặc định ban đầu sẽ là 1
+      const maxFloorNumber = floors.reduce((max, f) => {
+        const currentNum = Number(f.floor_number);
+        return currentNum > max ? currentNum : max;
+      }, 0);
+
+      const nextFloorNumber = maxFloorNumber + 1;
+
+      // 2. Gọi API để tạo tầng mới với số tầng đã tự động tăng
+      await api.createFloor({ 
+        zone_id: selectedZone.zone_id, 
+        floor_number: nextFloorNumber 
+      });
+
+      // 3. Tải lại danh sách tầng để cập nhật giao diện
       await loadFloors(selectedZone.zone_id);
     } catch (err) {
       setError(err.message || "Không thể thêm floor");
@@ -112,6 +129,8 @@ const AreaManagement = () => {
 
   const handleDeleteFloor = async (floorId) => {
     if (!selectedZone) return;
+    const confirmed = window.confirm("Bạn có chắc muốn xóa tầng này không?");
+    if (!confirmed) return;
     try {
       await api.deleteFloor(floorId);
       await loadFloors(selectedZone.zone_id);
@@ -136,6 +155,8 @@ const AreaManagement = () => {
 
   const handleDeleteRoom = async (roomId) => {
     if (!selectedFloor) return;
+    const confirmed = window.confirm("Bạn có chắc muốn xóa phòng này không?");
+    if (!confirmed) return;
     try {
       await api.deleteRoom(roomId);
       await loadRooms(selectedFloor.floor_id);

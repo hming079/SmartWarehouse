@@ -5,8 +5,8 @@ const FloorList = ({ floors, selectedZone, selectedFloorId, onSelect, onAdd, onD
   const disabled = !selectedZone;
 
   const handleAdd = async () => {
-    if (disabled || floorNumber === "") return;
-    await onAdd(Number(floorNumber));
+    if (disabled) return;
+    await onAdd();
     setFloorNumber("");
   };
 
@@ -15,14 +15,14 @@ const FloorList = ({ floors, selectedZone, selectedFloorId, onSelect, onAdd, onD
       <h2 className="mb-3 text-lg font-bold text-[#24124d]">Floor</h2>
 
       <div className="mb-3 flex gap-2">
-        <input
+        {/* <input
           type="number"
           value={floorNumber}
           disabled={disabled}
           onChange={(e) => setFloorNumber(e.target.value)}
           placeholder="Số tầng"
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-purple-500 disabled:bg-gray-100"
-        />
+        /> */}
         <button
           onClick={handleAdd}
           disabled={disabled}

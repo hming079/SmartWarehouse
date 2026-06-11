@@ -22,15 +22,15 @@ async function postRoom(req, res, next) {
         .json({ message: "floor_id, food_type_id and name are required" });
     }
 
-    const data = await roomService.createRoom({ floor_id, name, description });
-    await actionLogger.logAction({
-      code: "CREATE_ROOM",
-      name: "Create Room",
-      targetType: "ROOM",
-      targetId: data.room_id,
-      newValue: { floor_id, name, description },
-      actorUserId: req.user?.user_id,
-    });
+    const data = await roomService.createRoom({ floor_id, food_type_id, name, description });
+    // await actionLogger.logAction({
+    //   code: "CREATE_ROOM",
+    //   name: "Create Room",
+    //   targetType: "ROOM",
+    //   targetId: data.room_id,
+    //   newValue: { floor_id, name, description },
+    //   actorUserId: req.user?.user_id,
+    // });
     res.status(201).json({ ok: true, data });
   } catch (err) {
     next(err);
@@ -58,14 +58,14 @@ async function patchRoom(req, res, next) {
       name,
       description,
     });
-    await actionLogger.logAction({
-      code: "UPDATE_ROOM",
-      name: "Update Room",
-      targetType: "ROOM",
-      targetId: roomId,
-      newValue: { floor_id, name, description },
-      actorUserId: req.user?.user_id,
-    });
+    // await actionLogger.logAction({
+    //   code: "UPDATE_ROOM",
+    //   name: "Update Room",
+    //   targetType: "ROOM",
+    //   targetId: roomId,
+    //   newValue: { floor_id, name, description },
+    //   actorUserId: req.user?.user_id,
+    // });
     res.json({ ok: true, data });
   } catch (err) {
     next(err);
@@ -80,13 +80,13 @@ async function removeRoom(req, res, next) {
     }
 
     await roomService.deleteRoom(roomId);
-    await actionLogger.logAction({
-      code: "DELETE_ROOM",
-      name: "Delete Room",
-      targetType: "ROOM",
-      targetId: roomId,
-      actorUserId: req.user?.user_id,
-    });
+    // await actionLogger.logAction({
+    //   code: "DELETE_ROOM",
+    //   name: "Delete Room",
+    //   targetType: "ROOM",
+    //   targetId: roomId,
+    //   actorUserId: req.user?.user_id,
+    // });
     res.json({ ok: true, message: "Room deleted" });
   } catch (err) {
     next(err);

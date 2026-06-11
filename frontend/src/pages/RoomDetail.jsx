@@ -288,6 +288,8 @@ const RoomDetail = () => {
   }, [automationItems, stateZone?.name, stateRoom?.name, roomTitle, selectedRoomId]);
 
   const activeAutomationCount = roomAwareAutomation.filter((item) => item.is_active).length;
+  const totalAlertsCount = alertsItems.length;
+  const openAlertsCount = alertsItems.filter((item) => !(item.status === "RESOLVED" || item.is_resolved)).length;
 
   const groupedAuditItems = useMemo(() => {
     const groups = new Map();
@@ -422,11 +424,11 @@ const RoomDetail = () => {
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Độ ẩm hiện tại</p>
         </div>
 
-        {/* <div className="rounded-2xl border border-amber-400/20 bg-[#071a3f]/70 p-4 text-center">
-          <TriangleAlert className="mx-auto mb-2 text-amber-300" size={22} />
-          <p className="text-2xl font-bold text-amber-200">{formatValue(payload?.threshold?.temperature?.min, "°C")} ~ {formatValue(payload?.threshold?.temperature?.max, "°C")}</p>
-          <p className="mt-1 text-sm text-[#89a5d8]">Ngưỡng nhiệt độ</p>
-        </div> */}
+        <div className="rounded-2xl border border-amber-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-amber-400/50 hover:shadow-lg shadow-lg">
+          <TriangleAlert className="mx-auto mb-2 text-amber-500 dark:text-amber-400" size={22} />
+          <p className="text-3xl font-bold text-slate-900 dark:text-white">{openAlertsCount}/{totalAlertsCount}</p>
+          <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Cảnh báo đang mở</p>
+        </div>
 
         <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-blue-400/50 hover:shadow-lg shadow-lg">
           <Power className="mx-auto mb-2 text-blue-600 dark:text-blue-400" size={22} />

@@ -9,7 +9,13 @@ const RuleRow = ({ rule, onDelete, onToggle, onEdit }) => {
       <td className="px-4 py-4 text-gray-700">
         {rule.devices && rule.devices.length > 0 ? rule.devices.join(", ") : "--"}
       </td>
-      <td className="px-4 py-4 text-gray-700">{rule.alertLevel || "--"}</td>
+      <td className={`px-4 py-4 font-medium ${
+          rule.alertLevel === 'High' ? 'text-red-600' :
+          rule.alertLevel === 'Medium' ? 'text-amber-500' :
+          rule.alertLevel === 'Low' ? 'text-green-600' : 'text-gray-700'
+        }`}>
+          {rule.alertLevel || "--"}
+        </td>
       <td className="px-4 py-4">
         <span
           className={`rounded-full px-3 py-1 text-xs font-semibold ${

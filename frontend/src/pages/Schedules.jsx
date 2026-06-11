@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { CalendarClock, Plus, Trash2, Edit, ArrowRight } from "lucide-react";
 import Modal from "../components/ui/Modal";
 import { api } from "../api";
+import { getFoodTypeDisplay } from "../utils/foodTypes";
 
 const LOCATION_ID = 1;
 
@@ -65,6 +66,7 @@ const Schedules = () => {
   const [selectedZone, setSelectedZone] = useState(null);
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(urlRoomId);
+  const [roomFoodTypeById, setRoomFoodTypeById] = useState({});
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -160,6 +162,69 @@ const Schedules = () => {
     loadSchedules();
     loadDeviceOptions();
   }, [roomId, activeQuery]);
+
+  useEffect(() => {
+    const resolveFoodTypesByRoomId = async () => {
+      if (!Array.isArray(items) || items.length === 0 || zones.length === 0) {
+        return;
+      }
+
+      const roomIds = Array.from(
+        new Set(
+          items
+            .map((item) => Number(item.room_id))
+            .filter((id) => Number.isInteger(id) && id > 0),
+        ),
+      );
+
+      const idsToResolve = roomIds.filter((id) => !(id in roomFoodTypeById));
+      if (idsToResolve.length === 0) {
+        return;
+      }
+
+      const pending = new Set(idsToResolve);
+      const resolved = {};
+
+      for (const zone of zones) {
+        if (pending.size === 0) break;
+
+        let zoneFloors = [];
+        try {
+          const floorsRes = await api.getFloors(zone.zone_id);
+          zoneFloors = floorsRes.data || [];
+        } catch (_) {
+          continue;
+        }
+
+        for (const floor of zoneFloors) {
+          if (pending.size === 0) break;
+
+          let floorRooms = [];
+          try {
+            const roomsRes = await api.getRooms(floor.floor_id);
+            floorRooms = roomsRes.data || [];
+          } catch (_) {
+            continue;
+          }
+
+          for (const room of floorRooms) {
+            const id = Number(room.room_id);
+            if (!pending.has(id)) continue;
+            resolved[id] = room.food_type_name || null;
+            pending.delete(id);
+          }
+        }
+      }
+
+      pending.forEach((id) => {
+        resolved[id] = null;
+      });
+
+      setRoomFoodTypeById((prev) => ({ ...prev, ...resolved }));
+    };
+
+    resolveFoodTypesByRoomId();
+  }, [items, zones, roomFoodTypeById]);
 
   const openCreateModal = () => {
     setEditingId(null);
@@ -292,6 +357,8 @@ const Schedules = () => {
   };
 
   const handleDelete = async (id) => {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa lịch này không?");
+    if (!confirmed) return;
     try {
       await api.deleteSchedule(id);
       await loadSchedules();
@@ -436,6 +503,10 @@ const Schedules = () => {
           {!loading && !error && items.length > 0 && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {items.map((item) => (
+                (() => {
+                  const cardFoodTypeName = item.food_type_name || roomFoodTypeById[Number(item.room_id)] || "";
+                  const cardFoodTypeDisplay = getFoodTypeDisplay(cardFoodTypeName);
+                  return (
                 <div
                   key={item.id}
                   className="group relative overflow-hidden rounded-2xl border border-indigo-400/30 bg-white/10 p-5 shadow-lg backdrop-blur transition-all hover:border-indigo-400/50 hover:shadow-lg dark:bg-slate-800/40"
@@ -476,6 +547,16 @@ const Schedules = () => {
                         <span className="font-medium text-slate-900 dark:text-white">{item.room_name}</span>
                         </div>
                       )}
+
+                      {cardFoodTypeName ? (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-700 dark:text-slate-400">Food type:</span>
+                          <span className="inline-flex items-center gap-1 font-medium text-slate-900 dark:text-white">
+                            <span aria-hidden="true">{cardFoodTypeDisplay.icon}</span>
+                            <span>{cardFoodTypeDisplay.label}</span>
+                          </span>
+                        </div>
+                      ) : null}
 
                       <div className="flex flex-wrap gap-1">
                         {DAY_OPTIONS.map((day) => {
@@ -534,6 +615,8 @@ const Schedules = () => {
                     </div>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           )}
@@ -619,12 +702,35 @@ const Schedules = () => {
                 >
                   <option value="">Select Room</option>
                   {rooms.map((room) => (
-                    <option key={room.room_id} value={room.room_id}>
-                      {room.name}
-                    </option>
+                    (() => {
+                      const food = getFoodTypeDisplay(room.food_type_name);
+                      return (
+                        <option key={room.room_id} value={room.room_id}>
+                          {room.name} {room.food_type_name ? `(${food.icon} ${food.label})` : ""}
+                        </option>
+                      );
+                    })()
                   ))}
                 </select>
               </label>
+
+              {selectedRoom && (
+                <div className="md:col-span-3 rounded-xl border border-indigo-400/30 bg-white/10 px-3 py-2 text-sm text-slate-900 backdrop-blur dark:bg-slate-800/40 dark:text-white">
+                  {(() => {
+                    const selectedRoomInfo = rooms.find((room) => Number(room.room_id) === Number(selectedRoom));
+                    const selectedFoodTypeName = selectedRoomInfo?.food_type_name || roomFoodTypeById[Number(selectedRoom)] || "";
+                    const selectedFoodTypeDisplay = getFoodTypeDisplay(selectedFoodTypeName);
+                    return selectedFoodTypeName ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span aria-hidden="true">{selectedFoodTypeDisplay.icon}</span>
+                        <span>Food type: {selectedFoodTypeDisplay.label}</span>
+                      </span>
+                    ) : (
+                      <span>Food type: --</span>
+                    );
+                  })()}
+                </div>
+              )}
 
               <label className="flex flex-col gap-1 text-sm font-medium text-slate-900 dark:text-white">
                 Start time
@@ -674,7 +780,7 @@ const Schedules = () => {
                       onClick={() => handleDayToggle(day)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                         selected
-                          ? "border-indigo-400/40 bg-indigo-500/30 text-indigo-200"
+                          ? "border-indigo-400/40 bg-indigo-500/30 text-indigo-500"
                           : "border-slate-600 bg-white/10 text-slate-700 dark:text-slate-400 hover:bg-white/20 dark:hover:bg-slate-700/60"
                       }`}
                     >
@@ -703,8 +809,8 @@ const Schedules = () => {
                         onClick={() => handleDeviceToggle(id)}
                         className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
                           selected
-                            ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-200"
-                            : "border-slate-600 bg-slate-800/40 text-slate-300 hover:bg-slate-800/60"
+                            ? "border-indigo-400/40 bg-indigo-500/20 text-indigo-500"
+                            : "border-slate-600 bg-slate-800/40 text-slate-500 hover:bg-slate-800/60"
                         }`}
                       >
                         <span className="font-medium">{device.name}</span>
