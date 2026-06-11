@@ -1,10 +1,29 @@
+import { getFoodTypeDisplay } from "../../utils/foodTypes";
+// const cardFoodTypeName = item.food_type_name || roomFoodTypeById[Number(item.room_id)] || "";
+// const cardFoodTypeDisplay = getFoodTypeDisplay(cardFoodTypeName);
+const getConditionColor = (condition) => {
+  if (!condition) return 'text-gray-700'; // Màu mặc định nếu chuỗi rỗng
+  
+  const lowerCondition = condition.toLowerCase();
+  
+  if (lowerCondition.includes('temperature')) {
+    return 'text-orange-500'; // Màu cam cho temperature
+  }
+  if (lowerCondition.includes('humidity')) {
+    return 'text-blue-500'; // Màu xanh (blue/cyan) cho humidity
+  }
+  
+  return 'text-gray-700'; // Màu mặc định nếu không khớp từ khóa nào
+};
 const RuleRow = ({ rule, onDelete, onToggle, onEdit }) => {
   return (
     <tr className="border-b border-purple-100 last:border-b-0">
       <td className="px-4 py-4 font-semibold text-[#24124d]">{rule.name}</td>
       <td className="px-4 py-4 text-gray-700">{rule.applyTo}</td>
-      <td className="px-4 py-4 text-gray-700">{rule.foodType}</td>
-      <td className="px-4 py-4 text-gray-700">{rule.condition}</td>
+      <td className="px-4 py-4 text-gray-700">{rule.foodType} {getFoodTypeDisplay(rule.foodType).icon}</td>
+      <td className={`px-4 py-4 ${getConditionColor(rule.condition)}`}>
+        {rule.condition}
+      </td>
       <td className="px-4 py-4 text-gray-700">{rule.action}</td>
       <td className="px-4 py-4 text-gray-700">
         {rule.devices && rule.devices.length > 0 ? rule.devices.join(", ") : "--"}

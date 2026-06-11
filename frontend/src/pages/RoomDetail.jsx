@@ -393,7 +393,7 @@ const RoomDetail = () => {
           </p>
         </div>
 
-        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-300">Hoạt động</span>
+        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-sm font-semibold text-emerald-400">Hoạt động</span>
       </div>
 
       {roomFoodTypeName ? (
@@ -414,25 +414,25 @@ const RoomDetail = () => {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
         <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-blue-400/50 hover:shadow-lg shadow-lg">
           <Thermometer className="mx-auto mb-2 text-blue-600 dark:text-blue-400" size={22} />
-          <p className="text-4xl font-bold text-slate-900 dark:text-white">{formatValue(temperatureValue, "°C")}</p>
+          <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">{formatValue(temperatureValue, "°C")}</p>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Nhiệt độ hiện tại</p>
         </div>
 
         <div className="rounded-2xl border border-indigo-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-indigo-400/50 hover:shadow-lg shadow-lg">
           <Droplets className="mx-auto mb-2 text-indigo-600 dark:text-indigo-400" size={22} />
-          <p className="text-4xl font-bold text-slate-900 dark:text-white">{formatValue(humidityValue, "%")}</p>
+          <p className="text-4xl font-bold text-indigo-600 dark:text-indigo-400">{formatValue(humidityValue, "%")}</p>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Độ ẩm hiện tại</p>
         </div>
 
         <div className="rounded-2xl border border-amber-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-amber-400/50 hover:shadow-lg shadow-lg">
           <TriangleAlert className="mx-auto mb-2 text-amber-500 dark:text-amber-400" size={22} />
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{openAlertsCount}/{totalAlertsCount}</p>
+          <p className="text-3xl font-bold text-amber-500 dark:text-amber-400">{openAlertsCount}/{totalAlertsCount}</p>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Cảnh báo đang mở</p>
         </div>
 
         <div className="rounded-2xl border border-blue-400/30 bg-white/10 dark:bg-slate-900/40 backdrop-blur p-4 text-center transition hover:border-blue-400/50 hover:shadow-lg shadow-lg">
           <Power className="mx-auto mb-2 text-blue-600 dark:text-blue-400" size={22} />
-          <p className="text-3xl font-bold text-slate-900 dark:text-white">{activeCount}/{totalCount}</p>
+          <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">{activeCount}/{totalCount}</p>
           <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">Thiết bị đang bật</p>
         </div>
       </div>
@@ -510,7 +510,7 @@ const RoomDetail = () => {
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <p className="text-xs uppercase tracking-wider text-slate-700 dark:text-blue-300">
-              Thiet bi dieu khien ({filteredControlDevices.length}/{controlDevices.length})
+              Thiết bị điều khiển ({filteredControlDevices.length}/{controlDevices.length})
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -796,13 +796,13 @@ const RoomDetail = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
+                      {/* <button
                         type="button"
                         onClick={() => setExpandedAlertId(isExpanded ? null : alert.id)}
                         className="rounded bg-white/20 border border-white/30 px-2 py-1 text-[10px] font-semibold text-slate-900 dark:text-white transition hover:bg-white/30"
                       >
                         {isExpanded ? "Hide" : "Show"}
-                      </button>
+                      </button> */}
                       {!isResolved && (
                         <button
                           type="button"
