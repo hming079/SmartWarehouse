@@ -139,7 +139,7 @@ export const useRoomDetail = (selectedRoomId, payload) => {
       api.getAutomationRules(),
       api.getSchedules({ roomId: selectedRoomId }),
       api.getScheduleDevices({ roomId: selectedRoomId }),
-      api.getDeviceLogs({ roomId: selectedRoomId, page: 1, pageSize: 20 }),
+      api.getDeviceLogs({ roomId: selectedRoomId, page: 1, pageSize: 100 }),
       api.getAlerts({ roomId: selectedRoomId, status: "open", page: 1, pageSize: 20 }),
     ]);
 

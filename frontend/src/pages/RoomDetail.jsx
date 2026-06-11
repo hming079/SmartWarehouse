@@ -850,7 +850,7 @@ const RoomDetail = () => {
           />
 
           <div className="space-y-2">
-            {groupedAuditItems.slice(0, 12).map((group) => {
+            {groupedAuditItems.map((group) => {
               const latest = group.logs[0];
               return (
                 <div key={group.key} className="rounded-xl border border-blue-400/30 bg-white/10 dark:bg-slate-800/40 backdrop-blur overflow-hidden">
