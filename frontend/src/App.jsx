@@ -12,7 +12,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import { hasValidToken } from "./utils/auth";
-
+import AreaOverviewDashboard from "./pages/AreaOverviewDashboard"
 const UnauthenticatedNotice = () => (
   <div className="flex min-h-screen items-center justify-center bg-[#f5f3fb] px-4">
     <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-lg">
@@ -53,7 +53,7 @@ const App = () => {
         <Route path="/schedules" element={<PrivateRoute><MainLayout><Schedules /></MainLayout></PrivateRoute>} />
         <Route path="/users" element={<PrivateRoute><MainLayout><UserManagement /></MainLayout></PrivateRoute>} />
         <Route path="/audit-logs" element={<PrivateRoute><MainLayout><AuditLogs /></MainLayout></PrivateRoute>} />
-
+        <Route path="/overview" element={<PrivateRoute><MainLayout><AreaOverviewDashboard /></MainLayout></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

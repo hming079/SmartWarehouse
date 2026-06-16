@@ -17,6 +17,7 @@ const menuItems = [
   { label: "Area", path: "/area", icon: MapPinned },
   { label: "Automation", path: "/automation", icon: SlidersHorizontal },
   { label: "Schedules", path: "/schedules", icon: CalendarClock },
+  { label: "Overview", path: "/overview", icon: LayoutDashboard},
   { label: "Create Account", path: "/users", icon: Cog, roles: ["manager"] },
 ];
 
