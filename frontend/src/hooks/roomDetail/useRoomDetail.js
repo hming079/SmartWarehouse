@@ -50,7 +50,7 @@ export const formatValue = (value, suffix) => {
 };
 
 export const getStatusText = (status) =>
-  String(status || "").toLowerCase() === "on" ? "Dang bat" : "Dang tat";
+  String(status || "").toLowerCase() === "on" ? "Đang bật" : "Đang tắt";
 
 export const formatDateTime = (value) => {
   if (!value) return "--";

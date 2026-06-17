@@ -14,6 +14,7 @@ import {
   DoorOpen
 } from "lucide-react";
 import { api } from "../api";
+import { getFoodTypeDisplay } from "../utils/foodTypes";
 import { useDeviceData } from "../hooks/roomDetail/deviceRoomDetail"; // Đảm bảo đường dẫn đúng
 import { useRoomDetail, formatValue, toNumberOrNull, isTelemetryDevice } from "../hooks/roomDetail/useRoomDetail";
 
@@ -59,7 +60,7 @@ const RoomSummaryCard = ({ room, onClick }) => {
           <ChevronRight size={18} className="text-gray-400" />
         </div>
       </div>
-      <p className="text-sm text-gray-500 mb-4">{room.food_type_name || room.description || "Chưa phân loại"}</p>
+      <p className="text-sm text-gray-500 mb-4">{room.food_type_name + getFoodTypeDisplay(room.food_type_name).icon || room.description || "Chưa phân loại"}</p>
 
       {/* Thông số chính */}
       <div className="grid grid-cols-3 gap-3 mb-5">

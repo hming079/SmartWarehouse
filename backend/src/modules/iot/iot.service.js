@@ -1289,10 +1289,124 @@ async function controlDevice({ key, value, roomId, room_id: roomIdAlt } = {}) {
     },
   };
 }
+// Hàm bổ trợ kiểm tra ngày trong tuần linh hoạt (Hỗ trợ tiếng Anh, Số, và định dạng Thứ của Việt Nam)
+function isDayMatch(daysOfWeek, date) {
+  if (!daysOfWeek) return true;
+  const normalized = String(daysOfWeek).toLowerCase().trim();
+  if (normalized === "*" || normalized === "all" || normalized === "") return true;
+  
+  const dayNum = date.getDay(); // 0 (Chủ nhật) đến 6 (Thứ bảy)
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const dayAbbrevs = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+  
+  if (normalized.includes(dayNames[dayNum]) || normalized.includes(dayAbbrevs[dayNum])) {
+    return true;
+  }
+  
+  const tokens = normalized.split(/[\s,]+/);
+  if (tokens.includes(String(dayNum))) return true;
+  
+  if (dayNum === 0) { // Chủ nhật
+    if (tokens.includes("7") || tokens.includes("8") || tokens.includes("cn") || normalized.includes("chủ nhật")) return true;
+  } else {
+    if (tokens.includes(String(dayNum + 1))) return true; // Nếu quy ước 1=Thứ 2, 2=Thứ 3... 6=Thứ 7
+    if (tokens.includes(`t${dayNum + 1}`) || normalized.includes(`thứ ${dayNum + 1}`)) return true;
+  }
+  
+  return false;
+}
 
+// Hàm quét và thực thi các lịch trình (Schedules) để gửi tín hiệu IoT và đồng bộ DB
+async function executeScheduleRules() {
+  const pool = await getPool();
+  
+  // Truy vấn toàn bộ lịch trình đang hoạt động cùng thông tin thiết bị gắn với lịch đó
+  const result = await pool.request().query(`
+    SELECT 
+      sh.shedule_id AS scheduleId,
+      sh.name AS scheduleName,
+      CONVERT(varchar(8), sh.start_time, 108) AS startTimeStr,
+      CONVERT(varchar(8), sh.end_time, 108) AS endTimeStr,
+      sh.days_of_week AS daysOfWeek,
+      sh.action AS scheduleAction,
+      d.device_id AS deviceId,
+      d.room_id AS roomId,
+      d.device_type AS deviceKey,
+      d.device_status AS currentStatus
+    FROM dbo.Shedules sh
+    INNER JOIN dbo.Devices d ON d.shedule_id = sh.shedule_id
+    WHERE sh.is_active = 1
+  `);
+  
+  const rows = result.recordset || [];
+  if (rows.length === 0) return;
+  
+  const now = new Date();
+  const pad = (num) => String(num).padStart(2, '0');
+  const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  
+  for (const row of rows) {
+    const { startTimeStr, endTimeStr, daysOfWeek, scheduleAction, roomId, deviceKey, currentStatus } = row;
+    
+    // 1. Kiểm tra khớp ngày trong tuần
+    if (daysOfWeek && !isDayMatch(daysOfWeek, now)) {
+      continue;
+    }
+    
+    // 2. Kiểm tra xem thời gian hiện tại có nằm trong khung giờ hay không
+    let isInsideWindow = false;
+    if (startTimeStr && endTimeStr) {
+      if (startTimeStr <= endTimeStr) {
+        // Khung giờ chuẩn trong ngày (Ví dụ: 08:00:00 -> 17:00:00)
+        isInsideWindow = (currentTimeStr >= startTimeStr && currentTimeStr <= endTimeStr);
+      } else {
+        // Khung giờ xuyên đêm (Ví dụ: 22:00:00 -> 06:00:00 sáng hôm sau)
+        isInsideWindow = (currentTimeStr >= startTimeStr || currentTimeStr <= endTimeStr);
+      }
+    }
+    
+    // 3. Xác định trạng thái mong muốn (Desired Status)
+    // Nếu trong khung giờ: Chạy theo Action của lịch (POWER_ON -> ON, POWER_OFF -> OFF)
+    // Nếu ngoài khung giờ: Trả về trạng thái ngược lại để tắt/bật thiết bị khi hết giờ
+    let desiredStatus = "OFF";
+    if (isInsideWindow) {
+      desiredStatus = (scheduleAction === "POWER_ON") ? "ON" : "OFF";
+    } else {
+      desiredStatus = (scheduleAction === "POWER_ON") ? "OFF" : "ON";
+    }
+    
+    // 4. Nếu thiết bị đã đúng trạng thái mong muốn thì bỏ qua để tránh spam tín hiệu
+    if (currentStatus === desiredStatus) {
+      continue;
+    }
+    
+    try {
+      // Giống như luồng getData, kiểm tra xem phòng có được cấu hình kết nối CoreIoT hay không
+      if (isConfiguredIotRoom(roomId)) {
+        // Gửi tín hiệu điều khiển phần cứng thật xuống gateway qua RPC + Tự update DB cục bộ bên trong hàm
+        await controlDevice({
+          key: deviceKey,
+          value: desiredStatus === "ON" ? "1" : "0",
+          roomId: roomId
+        });
+      } else {
+        // Nếu là phòng local không kết nối kit IoT thật, chỉ cập nhật trạng thái DB và tạo DevicesLog
+        await upsertDeviceStatusDirect({
+          roomId: roomId,
+          deviceKey: deviceKey,
+          status: desiredStatus
+        });
+      }
+      console.log(`[Schedule Worker] Đã cập nhật thiết bị '${deviceKey}' (ID: ${row.deviceId}) tại Phòng ${roomId} thành [${desiredStatus}] tuân theo lịch trình: ${row.scheduleName}`);
+    } catch (err) {
+      console.error(`[Schedule Worker] Lỗi xử lý thiết bị ${deviceKey} cho lịch trình ${row.scheduleId}:`, err.message);
+    }
+  }
+}
 module.exports = {
   getData,
   controlDevice,
   syncCoreIotToDb,
   registerSwitch,
+  executeScheduleRules
 };
